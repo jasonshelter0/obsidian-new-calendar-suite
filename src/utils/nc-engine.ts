@@ -383,5 +383,225 @@ export const NC = {
     } else {
       return NC.format(m, pattern);
     }
-  }
+  },
+
+  // ── NC date arithmetic & navigation ──────────────────────────
+
+  /**
+   * Add NC days to an NC date. Returns new {ny, nm, nd}.
+   */
+  addDays: (ny: number, nm: number, nd: number, days: number) => {
+    const start = NC.getNCMonthStart(ny, nm);
+    const gc = start.clone().add(nd - 1 + days, "days");
+    return NC.toNewCalendar(gc.year(), gc.month() + 1, gc.date());
+  },
+
+  /**
+   * Compare two NC dates. Returns -1 if a < b, 0 if equal, 1 if a > b.
+   */
+  compare: (a: {ny:number,nm:number,nd:number}, b: {ny:number,nm:number,nd:number}): number => {
+    if (a.ny !== b.ny) return a.ny - b.ny;
+    if (a.nm !== b.nm) return a.nm - b.nm;
+    return a.nd - b.nd;
+  },
+
+  /**
+   * Get today's NC date info.
+   */
+  today: () => NC.getNCDate(window.moment()),
+
+  /**
+   * Get yesterday's NC date info.
+   */
+  yesterday: () => NC.getNCDate(window.moment().subtract(1, "day")),
+
+  /**
+   * Get tomorrow's NC date info.
+   */
+  tomorrow: () => NC.getNCDate(window.moment().add(1, "day")),
+
+  /**
+   * Navigate to the next NC period of the given granularity.
+   * Returns {ny, nm, nd, phase?, season?} for the start of the next period.
+   */
+  nextPeriod: (currentNC: {ny:number,nm:number,nd:number,phase:number,season:number}, granularity: string) => {
+    const maxMonths = currentNC.ny === 2 ? 15 : 16;
+    switch (granularity) {
+      case "day": {
+        const start = NC.getNCMonthStart(currentNC.ny, currentNC.nm);
+        const gc = start.clone().add(currentNC.nd, "days"); // nd is 1-based, so this gives next day
+        return NC.getNCDate(gc);
+      }
+      case "nc-phase": {
+        let nextPhase = currentNC.phase + 1;
+        let nextNy = currentNC.ny, nextNm = currentNC.nm;
+        if (nextPhase > 4) {
+          nextPhase = 1;
+          nextNm++;
+          if (nextNm > maxMonths) { nextNy++; nextNm = 1; }
+        }
+        const [start] = NC.getPhaseRange(nextNy, nextNm, nextPhase);
+        return NC.getNCDate(start);
+      }
+      case "nc-month": {
+        let nextNm = currentNC.nm + 1;
+        let nextNy = currentNC.ny;
+        if (nextNm > maxMonths) { nextNy++; nextNm = 1; }
+        const start = NC.getNCMonthStart(nextNy, nextNm);
+        return NC.getNCDate(start);
+      }
+      case "nc-season": {
+        const season = NC.getSeason(currentNC.ny, currentNC.nm);
+        let nextSeason = season + 1;
+        let nextNy = currentNC.ny;
+        if (nextSeason > 4) { nextNy++; nextSeason = 1; }
+        const [startNm] = NC.getSeasonMonths(nextNy, nextSeason);
+        const start = NC.getNCMonthStart(nextNy, startNm);
+        return NC.getNCDate(start);
+      }
+      case "nc-year": {
+        const start = NC.getNCMonthStart(currentNC.ny + 1, 1);
+        return NC.getNCDate(start);
+      }
+      default: return currentNC;
+    }
+  },
+
+  /**
+   * Navigate to the previous NC period. Inverse of nextPeriod.
+   */
+  prevPeriod: (currentNC: {ny:number,nm:number,nd:number,phase:number,season:number}, granularity: string) => {
+    const maxMonths = currentNC.ny === 2 ? 15 : 16;
+    switch (granularity) {
+      case "day": {
+        const start = NC.getNCMonthStart(currentNC.ny, currentNC.nm);
+        const gc = start.clone().add(currentNC.nd - 2, "days"); // nd is 1-based
+        return NC.getNCDate(gc);
+      }
+      case "nc-phase": {
+        let prevPhase = currentNC.phase - 1;
+        let prevNy = currentNC.ny, prevNm = currentNC.nm;
+        if (prevPhase < 1) {
+          prevPhase = 4;
+          prevNm--;
+          if (prevNm < 1) { prevNy--; prevNm = prevNy === 2 ? 15 : 16; }
+        }
+        if (prevNy < 1) return currentNC;
+        const [start] = NC.getPhaseRange(prevNy, prevNm, prevPhase);
+        return NC.getNCDate(start);
+      }
+      case "nc-month": {
+        let prevNm = currentNC.nm - 1;
+        let prevNy = currentNC.ny;
+        if (prevNm < 1) {
+          prevNy--;
+          if (prevNy < 1) return currentNC;
+          prevNm = prevNy === 2 ? 15 : 16;
+        }
+        const start = NC.getNCMonthStart(prevNy, prevNm);
+        return NC.getNCDate(start);
+      }
+      case "nc-season": {
+        const season = NC.getSeason(currentNC.ny, currentNC.nm);
+        let prevSeason = season - 1;
+        let prevNy = currentNC.ny;
+        if (prevSeason < 1) {
+          prevNy--;
+          if (prevNy < 1) return currentNC;
+          prevSeason = 4;
+        }
+        const [startNm] = NC.getSeasonMonths(prevNy, prevSeason);
+        const start = NC.getNCMonthStart(prevNy, startNm);
+        return NC.getNCDate(start);
+      }
+      case "nc-year": {
+        if (currentNC.ny <= 1) return currentNC;
+        const start = NC.getNCMonthStart(currentNC.ny - 1, 1);
+        return NC.getNCDate(start);
+      }
+      default: return currentNC;
+    }
+  },
+
+  /**
+   * Get the GC date range [start, end] for an NC period, suitable for Dataview WHERE clauses.
+   * @returns [moment, moment] — GC start and end moments
+   */
+  getPeriodRange: (granularity: string, ny: number, nm: number, ndOrPhaseOrSeason?: number) => {
+    switch (granularity) {
+      case "day": {
+        const start = NC.getNCMonthStart(ny, nm).clone().add((ndOrPhaseOrSeason || 1) - 1, "days");
+        return [start.clone(), start.clone().endOf("day")];
+      }
+      case "nc-phase":
+        return NC.getPhaseRange(ny, nm, ndOrPhaseOrSeason || 1);
+      case "nc-month":
+        return NC.getMonthRange(ny, nm);
+      case "nc-season": {
+        // Supports both calling patterns:
+        //   (granularity, ny, season)          → season in nm
+        //   (granularity, ny, placeholder, s)  → season in ndOrPhaseOrSeason
+        const season = ndOrPhaseOrSeason || nm || 1;
+        const [startNm, endNm] = NC.getSeasonMonths(ny, season);
+        const start = NC.getNCMonthStart(ny, startNm);
+        const maxMonths = ny === 2 ? 15 : 16;
+        let nextNy = ny, nextNm = endNm + 1;
+        if (nextNm > maxMonths) { nextNy++; nextNm = 1; }
+        const end = NC.getNCMonthStart(nextNy, nextNm);
+        return [start.clone(), end.clone().subtract(1, "day")];
+      }
+      case "nc-year": {
+        const start = NC.getNCMonthStart(ny, 1);
+        const maxMonths = ny === 2 ? 15 : 16;
+        let endNy = ny, endNm = maxMonths + 1;
+        if (endNm > maxMonths) { endNy++; endNm = 1; }
+        const end = NC.getNCMonthStart(endNy, endNm);
+        return [start.clone(), end.clone().subtract(1, "day")];
+      }
+      default:
+        return [window.moment(), window.moment()];
+    }
+  },
+
+  /**
+   * Format an NC date {ny, nm, nd} as a canonical sortable string "YY-MM-DD".
+   */
+  toDateString: (nc: {ny:number, nm:number, nd:number}): string => {
+    return `${nc.ny.toString().padStart(2,"0")}-${nc.nm.toString().padStart(2,"0")}-${nc.nd.toString().padStart(2,"0")}`;
+  },
+
+  /**
+   * Get the approximate GC year for an NC period.
+   *   approxGCYear(4)           → GC year of NC year 4 start
+   *   approxGCYear(4, 6)        → GC year of NC month 6 start
+   *   approxGCYear(4, 2, true)  → GC year of NC season 2 start
+   */
+  approxGCYear: (ny: number, nmOrSeason?: number, isSeason?: boolean): number => {
+    let gc: any;
+    if (nmOrSeason == null) {
+      gc = NC.getNCMonthStart(ny, 1);
+    } else if (isSeason) {
+      const [startNm] = NC.getSeasonMonths(ny, nmOrSeason);
+      gc = NC.getNCMonthStart(ny, startNm);
+    } else {
+      gc = NC.getNCMonthStart(ny, nmOrSeason);
+    }
+    return gc.year();
+  },
+
+  /**
+   * Parse a canonical NC date string "YY-MM-DD" back into {ny, nm, nd}.
+   */
+  parseDateString: (str: string) => {
+    const parts = str.split("-");
+    if (parts.length !== 3) return null;
+    const ny = parseInt(parts[0], 10);
+    const nm = parseInt(parts[1], 10);
+    const nd = parseInt(parts[2], 10);
+    if (isNaN(ny) || isNaN(nm) || isNaN(nd)) return null;
+    const phase = NC.getPhase(ny, nm, nd);
+    const season = NC.getSeason(ny, nm);
+    const color = ncMonthColour[nm.toString().padStart(2,"0")] || "#333";
+    return { ny, nm, nd, pNy: parts[0], pNm: parts[1], pNd: parts[2], phase, season, color };
+  },
 };

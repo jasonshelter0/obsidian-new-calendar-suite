@@ -42,11 +42,16 @@
     dayType: string;
   }[][] = [];
 
-  let ncInfo: { ny: number; nm: number; color: string; phase: number; season: number } | null = null;
+  let ncInfo: { ny: number; nm: number; color: string; phase: number; season: number; gcStart: string; gcEnd: string } | null = null;
 
   $: if (mode === "NC" && displayedMonth) {
     const info = NC.getNCDate(displayedMonth);
-    ncInfo = { ny: info.ny, nm: info.nm, color: info.color, phase: info.phase, season: info.season };
+    const range = NC.getMonthRange(info.ny, info.nm);
+    ncInfo = {
+      ny: info.ny, nm: info.nm, color: info.color, phase: info.phase, season: info.season,
+      gcStart: range[0].format("YYYY-MM-DD"),
+      gcEnd: range[1].format("YYYY-MM-DD"),
+    };
   } else {
     ncInfo = null;
   }
@@ -315,6 +320,13 @@
     {/if}
   </div>
 
+  <!-- Row 1.5: GC date range for current NC month -->
+  {#if mode === "NC" && ncInfo}
+    <div class="calendar-gc-range">
+      {ncInfo.gcStart || ""} – {ncInfo.gcEnd || ""}
+    </div>
+  {/if}
+
   <!-- Row 2: Nav with dots in middle -->
   <div class="calendar-header">
     <div class="calendar-nav">
@@ -475,6 +487,12 @@
   }
   .nc-month-text {
     white-space: nowrap;
+  }
+  .calendar-gc-range {
+    text-align: center;
+    font-size: 0.75em;
+    color: var(--text-faint);
+    margin-bottom: 4px;
   }
   .month-dot {
     width: 6px;

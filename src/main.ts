@@ -13,6 +13,7 @@ import CalendarView from "./view";
 import NCView from "./nc-view";
 import { NC } from "./utils/nc-engine";
 import { NCNotesAPI } from "./io/ncNotes";
+import { parseNCFilename, buildNCKey, buildNCFormatRegex } from "./utils/nc-dates";
 import {
   getDailyNoteSettings,
   getWeeklyNoteSettings,
@@ -34,8 +35,84 @@ declare global {
     _bundledLocaleWeekSpec: WeekSpec;
     NCEngine: typeof NC;
     NCNotes: typeof NCNotesAPI;
+    NCDates: typeof NCDatesAPI;
   }
 }
+
+/**
+ * Public API for DataviewJS, Templater, and other plugins.
+ * Access via `window.NCDates`.
+ *
+ * Usage examples:
+ *   // Today's NC date
+ *   const today = window.NCDates.today();
+ *
+ *   // Navigate to next NC month's start
+ *   const next = window.NCDates.nextPeriod(today, "nc-month");
+ *
+ *   // Get GC moments for a Dataview WHERE clause
+ *   const [start, end] = window.NCDates.getPeriodRange("nc-month", 4, 6);
+ *   dv.pages().where(p => p.file.day >= start && p.file.day < end);
+ *
+ *   // Parse an NC filename
+ *   const parsed = window.NCDates.parseFilename("NC-04-06-P2", "NC-YY-MM-[P]P", "nc-phase");
+ *
+ *   // Compare two NC dates
+ *   window.NCDates.compare({ny:4,nm:6,nd:1}, {ny:4,nm:6,nd:15}); // -1
+ */
+const NCDatesAPI = {
+  // ── NC date info ──────────────────────────────────
+  today: NC.today,
+  yesterday: NC.yesterday,
+  tomorrow: NC.tomorrow,
+  /** Get full NC info for any GC moment or date string */
+  get: NC.getNCDate,
+  /** Convert GC (gy, gm, gd) to NC */
+  convert: NC.toNewCalendar,
+
+  // ── Navigation ────────────────────────────────────
+  nextPeriod: NC.nextPeriod,
+  prevPeriod: NC.prevPeriod,
+  addDays: NC.addDays,
+
+  // ── Comparison ────────────────────────────────────
+  compare: NC.compare,
+
+  // ── Ranges (for Dataview WHERE clauses) ───────────
+  /** Get [startMoment, endMoment] for any NC period */
+  getPeriodRange: NC.getPeriodRange,
+
+  // ── String helpers ────────────────────────────────
+  /** Format NC {ny,nm,nd} as "YY-MM-DD" */
+  toDateString: NC.toDateString,
+  /** Parse "YY-MM-DD" → {ny,nm,nd,phase,season,color} */
+  parseDateString: NC.parseDateString,
+  /** Format any GC date using NC.format(pattern) */
+  format: NC.format,
+  /** Smart format from filename or now */
+  smartFormat: NC.smartFormat,
+
+  // ── NC calendar structure ─────────────────────────
+  getPhase: NC.getPhase,
+  getSeason: NC.getSeason,
+  getPhaseRange: NC.getPhaseRange,
+  getSeasonMonths: NC.getSeasonMonths,
+  getMonthRange: NC.getMonthRange,
+  getNCMonthStart: NC.getNCMonthStart,
+  getNCWeekOfMonth: NC.getNCWeekOfMonth,
+
+  // ── Filename parsing ──────────────────────────────
+  parseFilename: parseNCFilename,
+  buildKey: buildNCKey,
+  buildFormatRegex: buildNCFormatRegex,
+
+  // ── Cross-calendar mapping ────────────────────────
+  /** Rough GC year for an NC year / month / season (use start boundary) */
+  approxGCYear: NC.approxGCYear,
+
+  // ── i18n ──────────────────────────────────────────
+  numToChinese: NC.numToChinese,
+};
 
 export default class CalendarPlugin extends Plugin {
   public options: ISettings;
@@ -51,6 +128,7 @@ export default class CalendarPlugin extends Plugin {
   async onload(): Promise<void> {
     window.NCEngine = NC;
     window.NCNotes = NCNotesAPI;
+    window.NCDates = NCDatesAPI;
     this.options = defaultSettings;
 
     this.register(

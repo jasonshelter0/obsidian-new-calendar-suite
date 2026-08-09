@@ -1296,7 +1296,7 @@ function getAllMonthlyNotes() {
         const monthlyNotesFolder = vault.getAbstractFileByPath(folderPath);
         if (!monthlyNotesFolder)
             return monthlyNotes;
-        vault.recurseChildren(monthlyNotesFolder, (note) => {
+        obsidian.Vault.recurseChildren(monthlyNotesFolder, (note) => {
             if (note instanceof obsidian.TFile) {
                 const date = getDateFromFile(note, "month");
                 if (date) {
@@ -1324,7 +1324,7 @@ function getAllQuarterlyNotes() {
         const folderObj = vault.getAbstractFileByPath(folder);
         if (!folderObj)
             return quarterly;
-        vault.recurseChildren(folderObj, (note) => {
+        obsidian.Vault.recurseChildren(folderObj, (note) => {
             if (note instanceof obsidian.TFile) {
                 const date = getDateFromFile(note, "quarter");
                 if (date) {
@@ -1352,7 +1352,7 @@ function getAllYearlyNotes() {
         const folderObj = vault.getAbstractFileByPath(folder);
         if (!folderObj)
             return yearly;
-        vault.recurseChildren(folderObj, (note) => {
+        obsidian.Vault.recurseChildren(folderObj, (note) => {
             if (note instanceof obsidian.TFile) {
                 const date = getDateFromFile(note, "year");
                 if (date) {
@@ -1736,7 +1736,243 @@ const NC = {
         else {
             return NC.format(m, pattern);
         }
-    }
+    },
+    // ── NC date arithmetic & navigation ──────────────────────────
+    /**
+     * Add NC days to an NC date. Returns new {ny, nm, nd}.
+     */
+    addDays: (ny, nm, nd, days) => {
+        const start = NC.getNCMonthStart(ny, nm);
+        const gc = start.clone().add(nd - 1 + days, "days");
+        return NC.toNewCalendar(gc.year(), gc.month() + 1, gc.date());
+    },
+    /**
+     * Compare two NC dates. Returns -1 if a < b, 0 if equal, 1 if a > b.
+     */
+    compare: (a, b) => {
+        if (a.ny !== b.ny)
+            return a.ny - b.ny;
+        if (a.nm !== b.nm)
+            return a.nm - b.nm;
+        return a.nd - b.nd;
+    },
+    /**
+     * Get today's NC date info.
+     */
+    today: () => NC.getNCDate(window.moment()),
+    /**
+     * Get yesterday's NC date info.
+     */
+    yesterday: () => NC.getNCDate(window.moment().subtract(1, "day")),
+    /**
+     * Get tomorrow's NC date info.
+     */
+    tomorrow: () => NC.getNCDate(window.moment().add(1, "day")),
+    /**
+     * Navigate to the next NC period of the given granularity.
+     * Returns {ny, nm, nd, phase?, season?} for the start of the next period.
+     */
+    nextPeriod: (currentNC, granularity) => {
+        const maxMonths = currentNC.ny === 2 ? 15 : 16;
+        switch (granularity) {
+            case "day": {
+                const start = NC.getNCMonthStart(currentNC.ny, currentNC.nm);
+                const gc = start.clone().add(currentNC.nd, "days"); // nd is 1-based, so this gives next day
+                return NC.getNCDate(gc);
+            }
+            case "nc-phase": {
+                let nextPhase = currentNC.phase + 1;
+                let nextNy = currentNC.ny, nextNm = currentNC.nm;
+                if (nextPhase > 4) {
+                    nextPhase = 1;
+                    nextNm++;
+                    if (nextNm > maxMonths) {
+                        nextNy++;
+                        nextNm = 1;
+                    }
+                }
+                const [start] = NC.getPhaseRange(nextNy, nextNm, nextPhase);
+                return NC.getNCDate(start);
+            }
+            case "nc-month": {
+                let nextNm = currentNC.nm + 1;
+                let nextNy = currentNC.ny;
+                if (nextNm > maxMonths) {
+                    nextNy++;
+                    nextNm = 1;
+                }
+                const start = NC.getNCMonthStart(nextNy, nextNm);
+                return NC.getNCDate(start);
+            }
+            case "nc-season": {
+                const season = NC.getSeason(currentNC.ny, currentNC.nm);
+                let nextSeason = season + 1;
+                let nextNy = currentNC.ny;
+                if (nextSeason > 4) {
+                    nextNy++;
+                    nextSeason = 1;
+                }
+                const [startNm] = NC.getSeasonMonths(nextNy, nextSeason);
+                const start = NC.getNCMonthStart(nextNy, startNm);
+                return NC.getNCDate(start);
+            }
+            case "nc-year": {
+                const start = NC.getNCMonthStart(currentNC.ny + 1, 1);
+                return NC.getNCDate(start);
+            }
+            default: return currentNC;
+        }
+    },
+    /**
+     * Navigate to the previous NC period. Inverse of nextPeriod.
+     */
+    prevPeriod: (currentNC, granularity) => {
+        currentNC.ny === 2 ? 15 : 16;
+        switch (granularity) {
+            case "day": {
+                const start = NC.getNCMonthStart(currentNC.ny, currentNC.nm);
+                const gc = start.clone().add(currentNC.nd - 2, "days"); // nd is 1-based
+                return NC.getNCDate(gc);
+            }
+            case "nc-phase": {
+                let prevPhase = currentNC.phase - 1;
+                let prevNy = currentNC.ny, prevNm = currentNC.nm;
+                if (prevPhase < 1) {
+                    prevPhase = 4;
+                    prevNm--;
+                    if (prevNm < 1) {
+                        prevNy--;
+                        prevNm = prevNy === 2 ? 15 : 16;
+                    }
+                }
+                if (prevNy < 1)
+                    return currentNC;
+                const [start] = NC.getPhaseRange(prevNy, prevNm, prevPhase);
+                return NC.getNCDate(start);
+            }
+            case "nc-month": {
+                let prevNm = currentNC.nm - 1;
+                let prevNy = currentNC.ny;
+                if (prevNm < 1) {
+                    prevNy--;
+                    if (prevNy < 1)
+                        return currentNC;
+                    prevNm = prevNy === 2 ? 15 : 16;
+                }
+                const start = NC.getNCMonthStart(prevNy, prevNm);
+                return NC.getNCDate(start);
+            }
+            case "nc-season": {
+                const season = NC.getSeason(currentNC.ny, currentNC.nm);
+                let prevSeason = season - 1;
+                let prevNy = currentNC.ny;
+                if (prevSeason < 1) {
+                    prevNy--;
+                    if (prevNy < 1)
+                        return currentNC;
+                    prevSeason = 4;
+                }
+                const [startNm] = NC.getSeasonMonths(prevNy, prevSeason);
+                const start = NC.getNCMonthStart(prevNy, startNm);
+                return NC.getNCDate(start);
+            }
+            case "nc-year": {
+                if (currentNC.ny <= 1)
+                    return currentNC;
+                const start = NC.getNCMonthStart(currentNC.ny - 1, 1);
+                return NC.getNCDate(start);
+            }
+            default: return currentNC;
+        }
+    },
+    /**
+     * Get the GC date range [start, end] for an NC period, suitable for Dataview WHERE clauses.
+     * @returns [moment, moment] — GC start and end moments
+     */
+    getPeriodRange: (granularity, ny, nm, ndOrPhaseOrSeason) => {
+        switch (granularity) {
+            case "day": {
+                const start = NC.getNCMonthStart(ny, nm).clone().add((ndOrPhaseOrSeason || 1) - 1, "days");
+                return [start.clone(), start.clone().endOf("day")];
+            }
+            case "nc-phase":
+                return NC.getPhaseRange(ny, nm, ndOrPhaseOrSeason || 1);
+            case "nc-month":
+                return NC.getMonthRange(ny, nm);
+            case "nc-season": {
+                // Supports both calling patterns:
+                //   (granularity, ny, season)          → season in nm
+                //   (granularity, ny, placeholder, s)  → season in ndOrPhaseOrSeason
+                const season = ndOrPhaseOrSeason || nm || 1;
+                const [startNm, endNm] = NC.getSeasonMonths(ny, season);
+                const start = NC.getNCMonthStart(ny, startNm);
+                const maxMonths = ny === 2 ? 15 : 16;
+                let nextNy = ny, nextNm = endNm + 1;
+                if (nextNm > maxMonths) {
+                    nextNy++;
+                    nextNm = 1;
+                }
+                const end = NC.getNCMonthStart(nextNy, nextNm);
+                return [start.clone(), end.clone().subtract(1, "day")];
+            }
+            case "nc-year": {
+                const start = NC.getNCMonthStart(ny, 1);
+                const maxMonths = ny === 2 ? 15 : 16;
+                let endNy = ny, endNm = maxMonths + 1;
+                if (endNm > maxMonths) {
+                    endNy++;
+                    endNm = 1;
+                }
+                const end = NC.getNCMonthStart(endNy, endNm);
+                return [start.clone(), end.clone().subtract(1, "day")];
+            }
+            default:
+                return [window.moment(), window.moment()];
+        }
+    },
+    /**
+     * Format an NC date {ny, nm, nd} as a canonical sortable string "YY-MM-DD".
+     */
+    toDateString: (nc) => {
+        return `${nc.ny.toString().padStart(2, "0")}-${nc.nm.toString().padStart(2, "0")}-${nc.nd.toString().padStart(2, "0")}`;
+    },
+    /**
+     * Get the approximate GC year for an NC period.
+     *   approxGCYear(4)           → GC year of NC year 4 start
+     *   approxGCYear(4, 6)        → GC year of NC month 6 start
+     *   approxGCYear(4, 2, true)  → GC year of NC season 2 start
+     */
+    approxGCYear: (ny, nmOrSeason, isSeason) => {
+        let gc;
+        if (nmOrSeason == null) {
+            gc = NC.getNCMonthStart(ny, 1);
+        }
+        else if (isSeason) {
+            const [startNm] = NC.getSeasonMonths(ny, nmOrSeason);
+            gc = NC.getNCMonthStart(ny, startNm);
+        }
+        else {
+            gc = NC.getNCMonthStart(ny, nmOrSeason);
+        }
+        return gc.year();
+    },
+    /**
+     * Parse a canonical NC date string "YY-MM-DD" back into {ny, nm, nd}.
+     */
+    parseDateString: (str) => {
+        const parts = str.split("-");
+        if (parts.length !== 3)
+            return null;
+        const ny = parseInt(parts[0], 10);
+        const nm = parseInt(parts[1], 10);
+        const nd = parseInt(parts[2], 10);
+        if (isNaN(ny) || isNaN(nm) || isNaN(nd))
+            return null;
+        const phase = NC.getPhase(ny, nm, nd);
+        const season = NC.getSeason(ny, nm);
+        const color = ncMonthColour[nm.toString().padStart(2, "0")] || "#333";
+        return { ny, nm, nd, pNy: parts[0], pNm: parts[1], pNd: parts[2], phase, season, color };
+    },
 };
 
 /**
@@ -2001,7 +2237,7 @@ function getAllNCNotes(granularity) {
         const folderObj = vault.getAbstractFileByPath(folder);
         if (!folderObj)
             return notes;
-        vault.recurseChildren(folderObj, (note) => {
+        obsidian.Vault.recurseChildren(folderObj, (note) => {
             if (note instanceof obsidian.TFile) {
                 const basename = note.basename;
                 const frontmatter = getFrontmatterFromCache(note);
@@ -2472,8 +2708,8 @@ const { document: document_1 } = globals;
 
 function add_css() {
 	var style = element("style");
-	style.id = "svelte-y9kffy-style";
-	style.textContent = ".calendar-container.svelte-y9kffy.svelte-y9kffy{padding:10px;user-select:none;background-color:var(--background-primary);color:var(--text-normal)}.calendar-top-bar.svelte-y9kffy.svelte-y9kffy{position:sticky;top:0;background-color:var(--background-primary);z-index:10;padding-bottom:4px}.calendar-header.svelte-y9kffy.svelte-y9kffy{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;padding-top:2px;padding-bottom:4px}.month-matrix.svelte-y9kffy.svelte-y9kffy{display:grid;grid-template-rows:repeat(2, 1fr);grid-template-columns:repeat(8, 1fr);gap:2px}.calendar-title-row.svelte-y9kffy.svelte-y9kffy{text-align:center;margin-bottom:4px;font-weight:bold;font-size:1.1em;color:var(--text-accent);white-space:nowrap;min-width:22em;display:flex;align-items:center;gap:6px;justify-content:center;flex:1}.nc-month-text.svelte-y9kffy.svelte-y9kffy{white-space:nowrap}.month-dot.svelte-y9kffy.svelte-y9kffy{width:6px;height:6px;border-radius:50%;background-color:var(--dot-color);opacity:0.25;transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}.month-dot.active.svelte-y9kffy.svelte-y9kffy{opacity:1;transform:scale(1.4);box-shadow:0 0 5px var(--dot-color)}.nav-btn.svelte-y9kffy.svelte-y9kffy{cursor:pointer;background:none;border:1px solid var(--background-modifier-border);padding:2px 8px;border-radius:4px;color:var(--text-muted);font-size:0.9em}.nav-btn.svelte-y9kffy.svelte-y9kffy:hover{background-color:var(--background-modifier-hover);color:var(--text-normal)}.nav-btn-year.svelte-y9kffy.svelte-y9kffy{font-weight:bold;font-size:0.9em}.nav-btn-today.svelte-y9kffy.svelte-y9kffy{margin-left:6px;font-size:0.8em}.gc-title-text.svelte-y9kffy.svelte-y9kffy{color:var(--text-accent)}.nc-year-text.svelte-y9kffy.svelte-y9kffy{cursor:pointer;color:var(--text-normal);transition:opacity 0.15s}.nc-year-text.svelte-y9kffy.svelte-y9kffy:hover{opacity:0.7}.nc-season-text.svelte-y9kffy.svelte-y9kffy{cursor:pointer;font-weight:bold;transition:opacity 0.15s}.nc-season-text.svelte-y9kffy.svelte-y9kffy:hover{opacity:0.7}.nc-month-text.svelte-y9kffy.svelte-y9kffy{cursor:pointer;font-weight:bold;white-space:nowrap;transition:opacity 0.15s}.nc-month-text.svelte-y9kffy.svelte-y9kffy:hover{opacity:0.7}.nc-sep.svelte-y9kffy.svelte-y9kffy{color:var(--text-faint);font-weight:normal}.nc-phase-buttons.svelte-y9kffy.svelte-y9kffy{display:flex;justify-content:center;gap:6px;margin:4px 0 8px 0}.calendar-subheader.svelte-y9kffy.svelte-y9kffy{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px}.calendar-nav.svelte-y9kffy.svelte-y9kffy{display:flex;align-items:center;gap:2px;flex-shrink:0}.calendar-grid.svelte-y9kffy.svelte-y9kffy{width:100%;border-collapse:collapse;table-layout:fixed}.calendar-grid.svelte-y9kffy th.svelte-y9kffy{font-size:0.75em;color:var(--text-faint);text-transform:uppercase;font-weight:normal;padding-bottom:8px;width:13.1%}.calendar-grid-head.svelte-y9kffy.svelte-y9kffy{margin-bottom:0}.calendar-grid-body.svelte-y9kffy.svelte-y9kffy{margin-top:0}.week-num-header.svelte-y9kffy.svelte-y9kffy{width:8% !important}.week-num.svelte-y9kffy.svelte-y9kffy{font-size:0.7em;color:var(--text-faint);vertical-align:middle !important}.week-num-stack.svelte-y9kffy.svelte-y9kffy{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2}.nc-week.svelte-y9kffy.svelte-y9kffy{font-size:1.3em;font-weight:bold}.gc-week.svelte-y9kffy.svelte-y9kffy{font-size:0.85em;color:var(--text-faint)}.calendar-grid.svelte-y9kffy td.svelte-y9kffy{cursor:pointer;vertical-align:top;height:92px;border:1px solid transparent;transition:background-color 0.1s;overflow:hidden}.calendar-grid.svelte-y9kffy td.svelte-y9kffy:hover{background-color:var(--background-modifier-hover);border-radius:4px}.day-content.svelte-y9kffy.svelte-y9kffy{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;padding:4px 2px}.primary-date.svelte-y9kffy.svelte-y9kffy{font-size:1em;line-height:1.2}.secondary-date.svelte-y9kffy.svelte-y9kffy{font-size:0.7em;line-height:1.2;margin-top:1px;white-space:nowrap}.not-current-month.svelte-y9kffy.svelte-y9kffy{opacity:0.3}.is-holiday.svelte-y9kffy.svelte-y9kffy{background-color:rgba(255, 0, 0, 0.05)}.is-transfer-workday.svelte-y9kffy.svelte-y9kffy{background-color:rgba(var(--text-muted-rgb), 0.1)}tr.phase-start.svelte-y9kffy td.svelte-y9kffy{border-top:1px solid var(--text-accent) !important}.is-today.svelte-y9kffy.svelte-y9kffy{box-shadow:inset 0 0 0 2px var(--text-accent) !important;border-radius:4px;z-index:1;position:relative}.is-today.svelte-y9kffy .primary-date.svelte-y9kffy{color:var(--text-accent);font-weight:bold}.is-selected.svelte-y9kffy.svelte-y9kffy{box-shadow:inset 0 0 0 1px var(--text-accent) !important;border-radius:4px;position:relative;z-index:0}.holiday-name.svelte-y9kffy.svelte-y9kffy{font-size:0.65em;line-height:1.1;color:var(--text-accent);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;font-weight:500}.dots.svelte-y9kffy.svelte-y9kffy{display:flex;justify-content:center;gap:2px;margin-top:2px;min-height:6px}.dot.svelte-y9kffy.svelte-y9kffy{width:4px;height:4px;border-radius:50%;background-color:var(--dot-color);border:1px solid var(--dot-color)}.dot.hollow.svelte-y9kffy.svelte-y9kffy{background-color:transparent !important}.dot.overflow-dot.svelte-y9kffy.svelte-y9kffy{width:6px;height:6px;border-radius:1px;background-color:var(--text-accent);border-color:var(--text-accent);transform:rotate(45deg)}.day-info.svelte-y9kffy.svelte-y9kffy{font-size:0.65em;line-height:1.1;margin-top:2px;color:var(--text-muted);text-align:center;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.nc-phase-chip.svelte-y9kffy.svelte-y9kffy{font-size:0.55em;line-height:1;padding:1px 3px;border-radius:3px;font-weight:600;margin-top:1px;opacity:0.7;text-align:center}";
+	style.id = "svelte-1vcc0d-style";
+	style.textContent = ".calendar-container.svelte-1vcc0d.svelte-1vcc0d{padding:10px;user-select:none;background-color:var(--background-primary);color:var(--text-normal)}.calendar-top-bar.svelte-1vcc0d.svelte-1vcc0d{position:sticky;top:0;background-color:var(--background-primary);z-index:10;padding-bottom:4px}.calendar-header.svelte-1vcc0d.svelte-1vcc0d{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;padding-top:2px;padding-bottom:4px}.month-matrix.svelte-1vcc0d.svelte-1vcc0d{display:grid;grid-template-rows:repeat(2, 1fr);grid-template-columns:repeat(8, 1fr);gap:2px}.calendar-title-row.svelte-1vcc0d.svelte-1vcc0d{text-align:center;margin-bottom:4px;font-weight:bold;font-size:1.1em;color:var(--text-accent);white-space:nowrap;min-width:22em;display:flex;align-items:center;gap:6px;justify-content:center;flex:1}.nc-month-text.svelte-1vcc0d.svelte-1vcc0d{white-space:nowrap}.calendar-gc-range.svelte-1vcc0d.svelte-1vcc0d{text-align:center;font-size:0.75em;color:var(--text-faint);margin-bottom:4px}.month-dot.svelte-1vcc0d.svelte-1vcc0d{width:6px;height:6px;border-radius:50%;background-color:var(--dot-color);opacity:0.25;transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}.month-dot.active.svelte-1vcc0d.svelte-1vcc0d{opacity:1;transform:scale(1.4);box-shadow:0 0 5px var(--dot-color)}.nav-btn.svelte-1vcc0d.svelte-1vcc0d{cursor:pointer;background:none;border:1px solid var(--background-modifier-border);padding:2px 8px;border-radius:4px;color:var(--text-muted);font-size:0.9em}.nav-btn.svelte-1vcc0d.svelte-1vcc0d:hover{background-color:var(--background-modifier-hover);color:var(--text-normal)}.nav-btn-year.svelte-1vcc0d.svelte-1vcc0d{font-weight:bold;font-size:0.9em}.nav-btn-today.svelte-1vcc0d.svelte-1vcc0d{margin-left:6px;font-size:0.8em}.gc-title-text.svelte-1vcc0d.svelte-1vcc0d{color:var(--text-accent)}.nc-year-text.svelte-1vcc0d.svelte-1vcc0d{cursor:pointer;color:var(--text-normal);transition:opacity 0.15s}.nc-year-text.svelte-1vcc0d.svelte-1vcc0d:hover{opacity:0.7}.nc-season-text.svelte-1vcc0d.svelte-1vcc0d{cursor:pointer;font-weight:bold;transition:opacity 0.15s}.nc-season-text.svelte-1vcc0d.svelte-1vcc0d:hover{opacity:0.7}.nc-month-text.svelte-1vcc0d.svelte-1vcc0d{cursor:pointer;font-weight:bold;white-space:nowrap;transition:opacity 0.15s}.nc-month-text.svelte-1vcc0d.svelte-1vcc0d:hover{opacity:0.7}.nc-sep.svelte-1vcc0d.svelte-1vcc0d{color:var(--text-faint);font-weight:normal}.nc-phase-buttons.svelte-1vcc0d.svelte-1vcc0d{display:flex;justify-content:center;gap:6px;margin:4px 0 8px 0}.calendar-subheader.svelte-1vcc0d.svelte-1vcc0d{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px}.calendar-nav.svelte-1vcc0d.svelte-1vcc0d{display:flex;align-items:center;gap:2px;flex-shrink:0}.calendar-grid.svelte-1vcc0d.svelte-1vcc0d{width:100%;border-collapse:collapse;table-layout:fixed}.calendar-grid.svelte-1vcc0d th.svelte-1vcc0d{font-size:0.75em;color:var(--text-faint);text-transform:uppercase;font-weight:normal;padding-bottom:8px;width:13.1%}.calendar-grid-head.svelte-1vcc0d.svelte-1vcc0d{margin-bottom:0}.calendar-grid-body.svelte-1vcc0d.svelte-1vcc0d{margin-top:0}.week-num-header.svelte-1vcc0d.svelte-1vcc0d{width:8% !important}.week-num.svelte-1vcc0d.svelte-1vcc0d{font-size:0.7em;color:var(--text-faint);vertical-align:middle !important}.week-num-stack.svelte-1vcc0d.svelte-1vcc0d{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2}.nc-week.svelte-1vcc0d.svelte-1vcc0d{font-size:1.3em;font-weight:bold}.gc-week.svelte-1vcc0d.svelte-1vcc0d{font-size:0.85em;color:var(--text-faint)}.calendar-grid.svelte-1vcc0d td.svelte-1vcc0d{cursor:pointer;vertical-align:top;height:92px;border:1px solid transparent;transition:background-color 0.1s;overflow:hidden}.calendar-grid.svelte-1vcc0d td.svelte-1vcc0d:hover{background-color:var(--background-modifier-hover);border-radius:4px}.day-content.svelte-1vcc0d.svelte-1vcc0d{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;padding:4px 2px}.primary-date.svelte-1vcc0d.svelte-1vcc0d{font-size:1em;line-height:1.2}.secondary-date.svelte-1vcc0d.svelte-1vcc0d{font-size:0.7em;line-height:1.2;margin-top:1px;white-space:nowrap}.not-current-month.svelte-1vcc0d.svelte-1vcc0d{opacity:0.3}.is-holiday.svelte-1vcc0d.svelte-1vcc0d{background-color:rgba(255, 0, 0, 0.05)}.is-transfer-workday.svelte-1vcc0d.svelte-1vcc0d{background-color:rgba(var(--text-muted-rgb), 0.1)}tr.phase-start.svelte-1vcc0d td.svelte-1vcc0d{border-top:1px solid var(--text-accent) !important}.is-today.svelte-1vcc0d.svelte-1vcc0d{box-shadow:inset 0 0 0 2px var(--text-accent) !important;border-radius:4px;z-index:1;position:relative}.is-today.svelte-1vcc0d .primary-date.svelte-1vcc0d{color:var(--text-accent);font-weight:bold}.is-selected.svelte-1vcc0d.svelte-1vcc0d{box-shadow:inset 0 0 0 1px var(--text-accent) !important;border-radius:4px;position:relative;z-index:0}.holiday-name.svelte-1vcc0d.svelte-1vcc0d{font-size:0.65em;line-height:1.1;color:var(--text-accent);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;font-weight:500}.dots.svelte-1vcc0d.svelte-1vcc0d{display:flex;justify-content:center;gap:2px;margin-top:2px;min-height:6px}.dot.svelte-1vcc0d.svelte-1vcc0d{width:4px;height:4px;border-radius:50%;background-color:var(--dot-color);border:1px solid var(--dot-color)}.dot.hollow.svelte-1vcc0d.svelte-1vcc0d{background-color:transparent !important}.dot.overflow-dot.svelte-1vcc0d.svelte-1vcc0d{width:6px;height:6px;border-radius:1px;background-color:var(--text-accent);border-color:var(--text-accent);transform:rotate(45deg)}.day-info.svelte-1vcc0d.svelte-1vcc0d{font-size:0.65em;line-height:1.1;margin-top:2px;color:var(--text-muted);text-align:center;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.nc-phase-chip.svelte-1vcc0d.svelte-1vcc0d{font-size:0.55em;line-height:1;padding:1px 3px;border-radius:3px;font-weight:600;margin-top:1px;opacity:0.7;text-align:center}";
 	append(document_1.head, style);
 }
 
@@ -2515,8 +2751,8 @@ function get_each_context_5(ctx, list, i) {
 	return child_ctx;
 }
 
-// (286:21) 
-function create_if_block_11(ctx) {
+// (291:21) 
+function create_if_block_12(ctx) {
 	let span0;
 
 	let t0_value = (/*ncInfo*/ ctx[10].ny === 1
@@ -2561,14 +2797,14 @@ function create_if_block_11(ctx) {
 			span4 = element("span");
 			t10 = text(t10_value);
 			t11 = text("月");
-			attr(span0, "class", "nc-year-text svelte-y9kffy");
+			attr(span0, "class", "nc-year-text svelte-1vcc0d");
 			attr(span0, "title", "Open NC Year note");
-			attr(span1, "class", "nc-sep svelte-y9kffy");
-			attr(span2, "class", "nc-season-text svelte-y9kffy");
+			attr(span1, "class", "nc-sep svelte-1vcc0d");
+			attr(span2, "class", "nc-season-text svelte-1vcc0d");
 			set_style(span2, "color", /*ncInfo*/ ctx[10].color);
 			attr(span2, "title", "Open NC Season note");
-			attr(span3, "class", "nc-sep svelte-y9kffy");
-			attr(span4, "class", "nc-month-text svelte-y9kffy");
+			attr(span3, "class", "nc-sep svelte-1vcc0d");
+			attr(span4, "class", "nc-month-text svelte-1vcc0d");
 			set_style(span4, "color", /*ncInfo*/ ctx[10].color);
 			attr(span4, "title", "Open NC Month note");
 		},
@@ -2632,8 +2868,8 @@ function create_if_block_11(ctx) {
 	};
 }
 
-// (284:4) {#if mode === "GC"}
-function create_if_block_10(ctx) {
+// (289:4) {#if mode === "GC"}
+function create_if_block_11(ctx) {
 	let span;
 	let t;
 
@@ -2641,7 +2877,7 @@ function create_if_block_10(ctx) {
 		c() {
 			span = element("span");
 			t = text(/*title*/ ctx[12]);
-			attr(span, "class", "gc-title-text svelte-y9kffy");
+			attr(span, "class", "gc-title-text svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, span, anchor);
@@ -2656,7 +2892,40 @@ function create_if_block_10(ctx) {
 	};
 }
 
-// (305:6) {#if mode === "NC" && ncInfo}
+// (307:2) {#if mode === "NC" && ncInfo}
+function create_if_block_10(ctx) {
+	let div;
+	let t0_value = (/*ncInfo*/ ctx[10].gcStart || "") + "";
+	let t0;
+	let t1;
+	let t2_value = (/*ncInfo*/ ctx[10].gcEnd || "") + "";
+	let t2;
+
+	return {
+		c() {
+			div = element("div");
+			t0 = text(t0_value);
+			t1 = text(" – ");
+			t2 = text(t2_value);
+			attr(div, "class", "calendar-gc-range svelte-1vcc0d");
+		},
+		m(target, anchor) {
+			insert(target, div, anchor);
+			append(div, t0);
+			append(div, t1);
+			append(div, t2);
+		},
+		p(ctx, dirty) {
+			if (dirty[0] & /*ncInfo*/ 1024 && t0_value !== (t0_value = (/*ncInfo*/ ctx[10].gcStart || "") + "")) set_data(t0, t0_value);
+			if (dirty[0] & /*ncInfo*/ 1024 && t2_value !== (t2_value = (/*ncInfo*/ ctx[10].gcEnd || "") + "")) set_data(t2, t2_value);
+		},
+		d(detaching) {
+			if (detaching) detach(div);
+		}
+	};
+}
+
+// (317:6) {#if mode === "NC" && ncInfo}
 function create_if_block_9(ctx) {
 	let button;
 	let mounted;
@@ -2666,7 +2935,7 @@ function create_if_block_9(ctx) {
 		c() {
 			button = element("button");
 			button.textContent = "季-";
-			attr(button, "class", "nav-btn svelte-y9kffy");
+			attr(button, "class", "nav-btn svelte-1vcc0d");
 			attr(button, "title", "Previous season");
 		},
 		m(target, anchor) {
@@ -2686,7 +2955,7 @@ function create_if_block_9(ctx) {
 	};
 }
 
-// (311:4) {#if mode === "NC" && ncInfo}
+// (323:4) {#if mode === "NC" && ncInfo}
 function create_if_block_8(ctx) {
 	let span;
 	let each_value_5 = /*monthIndices*/ ctx[14];
@@ -2704,7 +2973,7 @@ function create_if_block_8(ctx) {
 				each_blocks[i].c();
 			}
 
-			attr(span, "class", "month-matrix svelte-y9kffy");
+			attr(span, "class", "month-matrix svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, span, anchor);
@@ -2744,14 +3013,14 @@ function create_if_block_8(ctx) {
 	};
 }
 
-// (313:8) {#each monthIndices as mIdx}
+// (325:8) {#each monthIndices as mIdx}
 function create_each_block_5(ctx) {
 	let span;
 
 	return {
 		c() {
 			span = element("span");
-			attr(span, "class", "month-dot svelte-y9kffy");
+			attr(span, "class", "month-dot svelte-1vcc0d");
 			set_style(span, "--dot-color", ncMonthColour[/*mIdx*/ ctx[56]]);
 			attr(span, "title", "" + (parseInt(/*mIdx*/ ctx[56]) + "月"));
 			toggle_class(span, "active", /*ncInfo*/ ctx[10].nm === parseInt(/*mIdx*/ ctx[56]));
@@ -2770,7 +3039,7 @@ function create_each_block_5(ctx) {
 	};
 }
 
-// (319:6) {#if mode === "NC" && ncInfo}
+// (331:6) {#if mode === "NC" && ncInfo}
 function create_if_block_7(ctx) {
 	let button;
 	let mounted;
@@ -2780,7 +3049,7 @@ function create_if_block_7(ctx) {
 		c() {
 			button = element("button");
 			button.textContent = "季+";
-			attr(button, "class", "nav-btn svelte-y9kffy");
+			attr(button, "class", "nav-btn svelte-1vcc0d");
 			attr(button, "title", "Next season");
 		},
 		m(target, anchor) {
@@ -2800,7 +3069,7 @@ function create_if_block_7(ctx) {
 	};
 }
 
-// (328:4) {#if mode === "NC" && ncInfo}
+// (340:4) {#if mode === "NC" && ncInfo}
 function create_if_block_6(ctx) {
 	let div;
 	let each_value_4 = [1, 2, 3, 4];
@@ -2818,7 +3087,7 @@ function create_if_block_6(ctx) {
 				each_blocks[i].c();
 			}
 
-			attr(div, "class", "nc-phase-buttons svelte-y9kffy");
+			attr(div, "class", "nc-phase-buttons svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -2856,7 +3125,7 @@ function create_if_block_6(ctx) {
 	};
 }
 
-// (330:8) {#each [1, 2, 3, 4] as phase}
+// (342:8) {#each [1, 2, 3, 4] as phase}
 function create_each_block_4(ctx) {
 	let button;
 	let t0;
@@ -2914,14 +3183,14 @@ function create_each_block_4(ctx) {
 	};
 }
 
-// (340:8) {#if showWeekNums}
+// (352:8) {#if showWeekNums}
 function create_if_block_5(ctx) {
 	let th;
 
 	return {
 		c() {
 			th = element("th");
-			attr(th, "class", "week-num-header svelte-y9kffy");
+			attr(th, "class", "week-num-header svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, th, anchor);
@@ -2932,7 +3201,7 @@ function create_if_block_5(ctx) {
 	};
 }
 
-// (343:8) {#each weekDays as day}
+// (355:8) {#each weekDays as day}
 function create_each_block_3(ctx) {
 	let th;
 	let t_value = /*day*/ ctx[45] + "";
@@ -2942,7 +3211,7 @@ function create_each_block_3(ctx) {
 		c() {
 			th = element("th");
 			t = text(t_value);
-			attr(th, "class", "svelte-y9kffy");
+			attr(th, "class", "svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, th, anchor);
@@ -2957,7 +3226,7 @@ function create_each_block_3(ctx) {
 	};
 }
 
-// (354:10) {#if showWeekNums}
+// (366:10) {#if showWeekNums}
 function create_if_block_3(ctx) {
 	let td;
 	let mounted;
@@ -2979,7 +3248,7 @@ function create_if_block_3(ctx) {
 		c() {
 			td = element("td");
 			if_block.c();
-			attr(td, "class", "week-num svelte-y9kffy");
+			attr(td, "class", "week-num svelte-1vcc0d");
 			toggle_class(td, "is-selected", /*selectedId*/ ctx[1] === getDateUID(/*week*/ ctx[42][0].date, "week"));
 		},
 		m(target, anchor) {
@@ -3019,7 +3288,7 @@ function create_if_block_3(ctx) {
 	};
 }
 
-// (369:14) {:else}
+// (381:14) {:else}
 function create_else_block(ctx) {
 	let t_value = /*week*/ ctx[42][0].date.format("ww") + "";
 	let t;
@@ -3040,7 +3309,7 @@ function create_else_block(ctx) {
 	};
 }
 
-// (360:14) {#if mode === "NC" && ncInfo}
+// (372:14) {#if mode === "NC" && ncInfo}
 function create_if_block_4(ctx) {
 	let div2;
 	let div0;
@@ -3059,10 +3328,10 @@ function create_if_block_4(ctx) {
 			t1 = space();
 			div1 = element("div");
 			t2 = text(t2_value);
-			attr(div0, "class", "nc-week svelte-y9kffy");
+			attr(div0, "class", "nc-week svelte-1vcc0d");
 			set_style(div0, "color", /*ncInfo*/ ctx[10].color);
-			attr(div1, "class", "gc-week svelte-y9kffy");
-			attr(div2, "class", "week-num-stack svelte-y9kffy");
+			attr(div1, "class", "gc-week svelte-1vcc0d");
+			attr(div2, "class", "week-num-stack svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, div2, anchor);
@@ -3087,7 +3356,7 @@ function create_if_block_4(ctx) {
 	};
 }
 
-// (392:16) {#if day.metadata.holidayName}
+// (404:16) {#if day.metadata.holidayName}
 function create_if_block_2(ctx) {
 	let div;
 	let t_value = /*day*/ ctx[45].metadata.holidayName + "";
@@ -3097,7 +3366,7 @@ function create_if_block_2(ctx) {
 		c() {
 			div = element("div");
 			t = text(t_value);
-			attr(div, "class", "holiday-name svelte-y9kffy");
+			attr(div, "class", "holiday-name svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -3112,7 +3381,7 @@ function create_if_block_2(ctx) {
 	};
 }
 
-// (395:16) {#if mode === "NC" && day.isPhaseStart && day.isCurrentMonth}
+// (407:16) {#if mode === "NC" && day.isPhaseStart && day.isCurrentMonth}
 function create_if_block_1(ctx) {
 	let div;
 	let t0;
@@ -3124,7 +3393,7 @@ function create_if_block_1(ctx) {
 			div = element("div");
 			t0 = text("P");
 			t1 = text(t1_value);
-			attr(div, "class", "nc-phase-chip svelte-y9kffy");
+			attr(div, "class", "nc-phase-chip svelte-1vcc0d");
 			set_style(div, "background", /*day*/ ctx[45].nc.color);
 			set_style(div, "color", "#fff");
 		},
@@ -3146,7 +3415,7 @@ function create_if_block_1(ctx) {
 	};
 }
 
-// (399:18) {#each day.metadata.dots as dot}
+// (411:18) {#each day.metadata.dots as dot}
 function create_each_block_2(ctx) {
 	let span;
 	let span_class_value;
@@ -3154,7 +3423,7 @@ function create_each_block_2(ctx) {
 	return {
 		c() {
 			span = element("span");
-			attr(span, "class", span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-y9kffy");
+			attr(span, "class", span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-1vcc0d");
 
 			set_style(span, "--dot-color", /*dot*/ ctx[48].color === "default"
 			? "var(--text-muted)"
@@ -3166,7 +3435,7 @@ function create_each_block_2(ctx) {
 			insert(target, span, anchor);
 		},
 		p(ctx, dirty) {
-			if (dirty[0] & /*days*/ 2048 && span_class_value !== (span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-y9kffy")) {
+			if (dirty[0] & /*days*/ 2048 && span_class_value !== (span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-1vcc0d")) {
 				attr(span, "class", span_class_value);
 			}
 
@@ -3186,7 +3455,7 @@ function create_each_block_2(ctx) {
 	};
 }
 
-// (407:16) {#if day.metadata.info}
+// (419:16) {#if day.metadata.info}
 function create_if_block(ctx) {
 	let div;
 	let t_value = /*day*/ ctx[45].metadata.info + "";
@@ -3196,7 +3465,7 @@ function create_if_block(ctx) {
 		c() {
 			div = element("div");
 			t = text(t_value);
-			attr(div, "class", "day-info svelte-y9kffy");
+			attr(div, "class", "day-info svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -3211,7 +3480,7 @@ function create_if_block(ctx) {
 	};
 }
 
-// (374:10) {#each week as day, j}
+// (386:10) {#each week as day, j}
 function create_each_block_1(ctx) {
 	let td;
 	let div3;
@@ -3288,21 +3557,21 @@ function create_each_block_1(ctx) {
 
 			t6 = space();
 			if (if_block2) if_block2.c();
-			attr(div0, "class", "primary-date svelte-y9kffy");
+			attr(div0, "class", "primary-date svelte-1vcc0d");
 
 			set_style(div0, "color", /*mode*/ ctx[0] === "NC"
 			? /*day*/ ctx[45].nc.color
 			: "inherit");
 
-			attr(div1, "class", "secondary-date svelte-y9kffy");
+			attr(div1, "class", "secondary-date svelte-1vcc0d");
 
 			set_style(div1, "color", /*mode*/ ctx[0] === "GC"
 			? /*day*/ ctx[45].nc.color
 			: "inherit");
 
-			attr(div2, "class", "dots svelte-y9kffy");
-			attr(div3, "class", "day-content svelte-y9kffy");
-			attr(td, "class", "svelte-y9kffy");
+			attr(div2, "class", "dots svelte-1vcc0d");
+			attr(div3, "class", "day-content svelte-1vcc0d");
+			attr(td, "class", "svelte-1vcc0d");
 			toggle_class(td, "is-today", /*day*/ ctx[45].isToday);
 			toggle_class(td, "is-selected", /*selectedId*/ ctx[1] === getDateUID(/*day*/ ctx[45].date, "day"));
 			toggle_class(td, "not-current-month", !/*day*/ ctx[45].isCurrentMonth);
@@ -3464,7 +3733,7 @@ function create_each_block_1(ctx) {
 	};
 }
 
-// (352:6) {#each days as week, i}
+// (364:6) {#each days as week, i}
 function create_each_block(ctx) {
 	let tr;
 	let t0;
@@ -3488,7 +3757,7 @@ function create_each_block(ctx) {
 			}
 
 			t1 = space();
-			attr(tr, "class", "svelte-y9kffy");
+			attr(tr, "class", "svelte-1vcc0d");
 			toggle_class(tr, "phase-start", /*i*/ ctx[44] > 0 && /*mode*/ ctx[0] === "NC" && /*week*/ ctx[42].phase !== /*days*/ ctx[11][/*i*/ ctx[44] - 1].phase);
 		},
 		m(target, anchor) {
@@ -3556,54 +3825,56 @@ function create_fragment$1(ctx) {
 	let div5;
 	let div0;
 	let t0;
+	let t1;
 	let div3;
 	let div1;
 	let button0;
-	let t1_value = (/*mode*/ ctx[0] === "NC" ? "年-" : "Y-") + "";
-	let t1;
+	let t2_value = (/*mode*/ ctx[0] === "NC" ? "年-" : "Y-") + "";
 	let t2;
 	let t3;
-	let button1;
-	let t4_value = (/*mode*/ ctx[0] === "NC" ? "月-" : "M-") + "";
 	let t4;
+	let button1;
+	let t5_value = (/*mode*/ ctx[0] === "NC" ? "月-" : "M-") + "";
 	let t5;
 	let t6;
+	let t7;
 	let div2;
 	let button2;
-	let t7_value = (/*mode*/ ctx[0] === "NC" ? "月+" : "M+") + "";
-	let t7;
+	let t8_value = (/*mode*/ ctx[0] === "NC" ? "月+" : "M+") + "";
 	let t8;
 	let t9;
-	let button3;
-	let t10_value = (/*mode*/ ctx[0] === "NC" ? "年+" : "Y+") + "";
 	let t10;
+	let button3;
+	let t11_value = (/*mode*/ ctx[0] === "NC" ? "年+" : "Y+") + "";
 	let t11;
-	let div4;
 	let t12;
+	let div4;
+	let t13;
 	let button4;
-	let t14;
+	let t15;
 	let table0;
 	let thead;
 	let tr;
-	let t15;
 	let t16;
+	let t17;
 	let table1;
 	let tbody;
 	let mounted;
 	let dispose;
 
 	function select_block_type(ctx, dirty) {
-		if (/*mode*/ ctx[0] === "GC") return create_if_block_10;
-		if (/*ncInfo*/ ctx[10]) return create_if_block_11;
+		if (/*mode*/ ctx[0] === "GC") return create_if_block_11;
+		if (/*ncInfo*/ ctx[10]) return create_if_block_12;
 	}
 
 	let current_block_type = select_block_type(ctx);
 	let if_block0 = current_block_type && current_block_type(ctx);
-	let if_block1 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_9(ctx);
-	let if_block2 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_8(ctx);
-	let if_block3 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_7(ctx);
-	let if_block4 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_6(ctx);
-	let if_block5 = /*showWeekNums*/ ctx[2] && create_if_block_5();
+	let if_block1 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_10(ctx);
+	let if_block2 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_9(ctx);
+	let if_block3 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_8(ctx);
+	let if_block4 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_7(ctx);
+	let if_block5 = /*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10] && create_if_block_6(ctx);
+	let if_block6 = /*showWeekNums*/ ctx[2] && create_if_block_5();
 	let each_value_3 = /*weekDays*/ ctx[13];
 	let each_blocks_1 = [];
 
@@ -3625,44 +3896,46 @@ function create_fragment$1(ctx) {
 			div0 = element("div");
 			if (if_block0) if_block0.c();
 			t0 = space();
+			if (if_block1) if_block1.c();
+			t1 = space();
 			div3 = element("div");
 			div1 = element("div");
 			button0 = element("button");
-			t1 = text(t1_value);
-			t2 = space();
-			if (if_block1) if_block1.c();
+			t2 = text(t2_value);
 			t3 = space();
-			button1 = element("button");
-			t4 = text(t4_value);
-			t5 = space();
 			if (if_block2) if_block2.c();
+			t4 = space();
+			button1 = element("button");
+			t5 = text(t5_value);
 			t6 = space();
+			if (if_block3) if_block3.c();
+			t7 = space();
 			div2 = element("div");
 			button2 = element("button");
-			t7 = text(t7_value);
-			t8 = space();
-			if (if_block3) if_block3.c();
+			t8 = text(t8_value);
 			t9 = space();
-			button3 = element("button");
-			t10 = text(t10_value);
-			t11 = space();
-			div4 = element("div");
 			if (if_block4) if_block4.c();
+			t10 = space();
+			button3 = element("button");
+			t11 = text(t11_value);
 			t12 = space();
+			div4 = element("div");
+			if (if_block5) if_block5.c();
+			t13 = space();
 			button4 = element("button");
 			button4.textContent = "Today";
-			t14 = space();
+			t15 = space();
 			table0 = element("table");
 			thead = element("thead");
 			tr = element("tr");
-			if (if_block5) if_block5.c();
-			t15 = space();
+			if (if_block6) if_block6.c();
+			t16 = space();
 
 			for (let i = 0; i < each_blocks_1.length; i += 1) {
 				each_blocks_1[i].c();
 			}
 
-			t16 = space();
+			t17 = space();
 			table1 = element("table");
 			tbody = element("tbody");
 
@@ -3670,22 +3943,22 @@ function create_fragment$1(ctx) {
 				each_blocks[i].c();
 			}
 
-			attr(div0, "class", "calendar-title-row svelte-y9kffy");
-			attr(button0, "class", "nav-btn nav-btn-year svelte-y9kffy");
+			attr(div0, "class", "calendar-title-row svelte-1vcc0d");
+			attr(button0, "class", "nav-btn nav-btn-year svelte-1vcc0d");
 			attr(button0, "title", "Previous year");
-			attr(button1, "class", "nav-btn svelte-y9kffy");
-			attr(div1, "class", "calendar-nav svelte-y9kffy");
-			attr(button2, "class", "nav-btn svelte-y9kffy");
-			attr(button3, "class", "nav-btn nav-btn-year svelte-y9kffy");
+			attr(button1, "class", "nav-btn svelte-1vcc0d");
+			attr(div1, "class", "calendar-nav svelte-1vcc0d");
+			attr(button2, "class", "nav-btn svelte-1vcc0d");
+			attr(button3, "class", "nav-btn nav-btn-year svelte-1vcc0d");
 			attr(button3, "title", "Next year");
-			attr(div2, "class", "calendar-nav svelte-y9kffy");
-			attr(div3, "class", "calendar-header svelte-y9kffy");
-			attr(button4, "class", "nav-btn nav-btn-today svelte-y9kffy");
-			attr(div4, "class", "calendar-subheader svelte-y9kffy");
-			attr(table0, "class", "calendar-grid calendar-grid-head svelte-y9kffy");
-			attr(div5, "class", "calendar-top-bar svelte-y9kffy");
-			attr(table1, "class", "calendar-grid calendar-grid-body svelte-y9kffy");
-			attr(div6, "class", "calendar-container svelte-y9kffy");
+			attr(div2, "class", "calendar-nav svelte-1vcc0d");
+			attr(div3, "class", "calendar-header svelte-1vcc0d");
+			attr(button4, "class", "nav-btn nav-btn-today svelte-1vcc0d");
+			attr(div4, "class", "calendar-subheader svelte-1vcc0d");
+			attr(table0, "class", "calendar-grid calendar-grid-head svelte-1vcc0d");
+			attr(div5, "class", "calendar-top-bar svelte-1vcc0d");
+			attr(table1, "class", "calendar-grid calendar-grid-body svelte-1vcc0d");
+			attr(div6, "class", "calendar-container svelte-1vcc0d");
 		},
 		m(target, anchor) {
 			insert(target, div6, anchor);
@@ -3693,43 +3966,45 @@ function create_fragment$1(ctx) {
 			append(div5, div0);
 			if (if_block0) if_block0.m(div0, null);
 			append(div5, t0);
+			if (if_block1) if_block1.m(div5, null);
+			append(div5, t1);
 			append(div5, div3);
 			append(div3, div1);
 			append(div1, button0);
-			append(button0, t1);
-			append(div1, t2);
-			if (if_block1) if_block1.m(div1, null);
+			append(button0, t2);
 			append(div1, t3);
+			if (if_block2) if_block2.m(div1, null);
+			append(div1, t4);
 			append(div1, button1);
-			append(button1, t4);
-			append(div3, t5);
-			if (if_block2) if_block2.m(div3, null);
+			append(button1, t5);
 			append(div3, t6);
+			if (if_block3) if_block3.m(div3, null);
+			append(div3, t7);
 			append(div3, div2);
 			append(div2, button2);
-			append(button2, t7);
-			append(div2, t8);
-			if (if_block3) if_block3.m(div2, null);
+			append(button2, t8);
 			append(div2, t9);
+			if (if_block4) if_block4.m(div2, null);
+			append(div2, t10);
 			append(div2, button3);
-			append(button3, t10);
-			append(div5, t11);
+			append(button3, t11);
+			append(div5, t12);
 			append(div5, div4);
-			if (if_block4) if_block4.m(div4, null);
-			append(div4, t12);
+			if (if_block5) if_block5.m(div4, null);
+			append(div4, t13);
 			append(div4, button4);
-			append(div5, t14);
+			append(div5, t15);
 			append(div5, table0);
 			append(table0, thead);
 			append(thead, tr);
-			if (if_block5) if_block5.m(tr, null);
-			append(tr, t15);
+			if (if_block6) if_block6.m(tr, null);
+			append(tr, t16);
 
 			for (let i = 0; i < each_blocks_1.length; i += 1) {
 				each_blocks_1[i].m(tr, null);
 			}
 
-			append(div6, t16);
+			append(div6, t17);
 			append(div6, table1);
 			append(table1, tbody);
 
@@ -3762,75 +4037,88 @@ function create_fragment$1(ctx) {
 				}
 			}
 
-			if (dirty[0] & /*mode*/ 1 && t1_value !== (t1_value = (/*mode*/ ctx[0] === "NC" ? "年-" : "Y-") + "")) set_data(t1, t1_value);
-
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block1) {
 					if_block1.p(ctx, dirty);
 				} else {
-					if_block1 = create_if_block_9(ctx);
+					if_block1 = create_if_block_10(ctx);
 					if_block1.c();
-					if_block1.m(div1, t3);
+					if_block1.m(div5, t1);
 				}
 			} else if (if_block1) {
 				if_block1.d(1);
 				if_block1 = null;
 			}
 
-			if (dirty[0] & /*mode*/ 1 && t4_value !== (t4_value = (/*mode*/ ctx[0] === "NC" ? "月-" : "M-") + "")) set_data(t4, t4_value);
+			if (dirty[0] & /*mode*/ 1 && t2_value !== (t2_value = (/*mode*/ ctx[0] === "NC" ? "年-" : "Y-") + "")) set_data(t2, t2_value);
 
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block2) {
 					if_block2.p(ctx, dirty);
 				} else {
-					if_block2 = create_if_block_8(ctx);
+					if_block2 = create_if_block_9(ctx);
 					if_block2.c();
-					if_block2.m(div3, t6);
+					if_block2.m(div1, t4);
 				}
 			} else if (if_block2) {
 				if_block2.d(1);
 				if_block2 = null;
 			}
 
-			if (dirty[0] & /*mode*/ 1 && t7_value !== (t7_value = (/*mode*/ ctx[0] === "NC" ? "月+" : "M+") + "")) set_data(t7, t7_value);
+			if (dirty[0] & /*mode*/ 1 && t5_value !== (t5_value = (/*mode*/ ctx[0] === "NC" ? "月-" : "M-") + "")) set_data(t5, t5_value);
 
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block3) {
 					if_block3.p(ctx, dirty);
 				} else {
-					if_block3 = create_if_block_7(ctx);
+					if_block3 = create_if_block_8(ctx);
 					if_block3.c();
-					if_block3.m(div2, t9);
+					if_block3.m(div3, t7);
 				}
 			} else if (if_block3) {
 				if_block3.d(1);
 				if_block3 = null;
 			}
 
-			if (dirty[0] & /*mode*/ 1 && t10_value !== (t10_value = (/*mode*/ ctx[0] === "NC" ? "年+" : "Y+") + "")) set_data(t10, t10_value);
+			if (dirty[0] & /*mode*/ 1 && t8_value !== (t8_value = (/*mode*/ ctx[0] === "NC" ? "月+" : "M+") + "")) set_data(t8, t8_value);
 
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block4) {
 					if_block4.p(ctx, dirty);
 				} else {
-					if_block4 = create_if_block_6(ctx);
+					if_block4 = create_if_block_7(ctx);
 					if_block4.c();
-					if_block4.m(div4, t12);
+					if_block4.m(div2, t10);
 				}
 			} else if (if_block4) {
 				if_block4.d(1);
 				if_block4 = null;
 			}
 
-			if (/*showWeekNums*/ ctx[2]) {
-				if (if_block5) ; else {
-					if_block5 = create_if_block_5();
+			if (dirty[0] & /*mode*/ 1 && t11_value !== (t11_value = (/*mode*/ ctx[0] === "NC" ? "年+" : "Y+") + "")) set_data(t11, t11_value);
+
+			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
+				if (if_block5) {
+					if_block5.p(ctx, dirty);
+				} else {
+					if_block5 = create_if_block_6(ctx);
 					if_block5.c();
-					if_block5.m(tr, t15);
+					if_block5.m(div4, t13);
 				}
 			} else if (if_block5) {
 				if_block5.d(1);
 				if_block5 = null;
+			}
+
+			if (/*showWeekNums*/ ctx[2]) {
+				if (if_block6) ; else {
+					if_block6 = create_if_block_5();
+					if_block6.c();
+					if_block6.m(tr, t16);
+				}
+			} else if (if_block6) {
+				if_block6.d(1);
+				if_block6 = null;
 			}
 
 			if (dirty[0] & /*weekDays*/ 8192) {
@@ -3893,6 +4181,7 @@ function create_fragment$1(ctx) {
 			if (if_block3) if_block3.d();
 			if (if_block4) if_block4.d();
 			if (if_block5) if_block5.d();
+			if (if_block6) if_block6.d();
 			destroy_each(each_blocks_1, detaching);
 			destroy_each(each_blocks, detaching);
 			mounted = false;
@@ -4261,13 +4550,16 @@ function instance$1($$self, $$props, $$invalidate) {
 		if ($$self.$$.dirty[0] & /*mode, displayedMonth*/ 4194305) {
 			if (mode === "NC" && displayedMonth) {
 				const info = NC.getNCDate(displayedMonth);
+				const range = NC.getMonthRange(info.ny, info.nm);
 
 				$$invalidate(10, ncInfo = {
 					ny: info.ny,
 					nm: info.nm,
 					color: info.color,
 					phase: info.phase,
-					season: info.season
+					season: info.season,
+					gcStart: range[0].format("YYYY-MM-DD"),
+					gcEnd: range[1].format("YYYY-MM-DD")
 				});
 			} else {
 				$$invalidate(10, ncInfo = null);
@@ -4339,7 +4631,7 @@ function instance$1($$self, $$props, $$invalidate) {
 class CalendarGrid extends SvelteComponent {
 	constructor(options) {
 		super();
-		if (!document_1.getElementById("svelte-y9kffy-style")) add_css();
+		if (!document_1.getElementById("svelte-1vcc0d-style")) add_css();
 
 		init(
 			this,
@@ -5358,6 +5650,72 @@ class NCView extends obsidian.ItemView {
     }
 }
 
+/**
+ * Public API for DataviewJS, Templater, and other plugins.
+ * Access via `window.NCDates`.
+ *
+ * Usage examples:
+ *   // Today's NC date
+ *   const today = window.NCDates.today();
+ *
+ *   // Navigate to next NC month's start
+ *   const next = window.NCDates.nextPeriod(today, "nc-month");
+ *
+ *   // Get GC moments for a Dataview WHERE clause
+ *   const [start, end] = window.NCDates.getPeriodRange("nc-month", 4, 6);
+ *   dv.pages().where(p => p.file.day >= start && p.file.day < end);
+ *
+ *   // Parse an NC filename
+ *   const parsed = window.NCDates.parseFilename("NC-04-06-P2", "NC-YY-MM-[P]P", "nc-phase");
+ *
+ *   // Compare two NC dates
+ *   window.NCDates.compare({ny:4,nm:6,nd:1}, {ny:4,nm:6,nd:15}); // -1
+ */
+const NCDatesAPI = {
+    // ── NC date info ──────────────────────────────────
+    today: NC.today,
+    yesterday: NC.yesterday,
+    tomorrow: NC.tomorrow,
+    /** Get full NC info for any GC moment or date string */
+    get: NC.getNCDate,
+    /** Convert GC (gy, gm, gd) to NC */
+    convert: NC.toNewCalendar,
+    // ── Navigation ────────────────────────────────────
+    nextPeriod: NC.nextPeriod,
+    prevPeriod: NC.prevPeriod,
+    addDays: NC.addDays,
+    // ── Comparison ────────────────────────────────────
+    compare: NC.compare,
+    // ── Ranges (for Dataview WHERE clauses) ───────────
+    /** Get [startMoment, endMoment] for any NC period */
+    getPeriodRange: NC.getPeriodRange,
+    // ── String helpers ────────────────────────────────
+    /** Format NC {ny,nm,nd} as "YY-MM-DD" */
+    toDateString: NC.toDateString,
+    /** Parse "YY-MM-DD" → {ny,nm,nd,phase,season,color} */
+    parseDateString: NC.parseDateString,
+    /** Format any GC date using NC.format(pattern) */
+    format: NC.format,
+    /** Smart format from filename or now */
+    smartFormat: NC.smartFormat,
+    // ── NC calendar structure ─────────────────────────
+    getPhase: NC.getPhase,
+    getSeason: NC.getSeason,
+    getPhaseRange: NC.getPhaseRange,
+    getSeasonMonths: NC.getSeasonMonths,
+    getMonthRange: NC.getMonthRange,
+    getNCMonthStart: NC.getNCMonthStart,
+    getNCWeekOfMonth: NC.getNCWeekOfMonth,
+    // ── Filename parsing ──────────────────────────────
+    parseFilename: parseNCFilename,
+    buildKey: buildNCKey,
+    buildFormatRegex: buildNCFormatRegex,
+    // ── Cross-calendar mapping ────────────────────────
+    /** Rough GC year for an NC year / month / season (use start boundary) */
+    approxGCYear: NC.approxGCYear,
+    // ── i18n ──────────────────────────────────────────
+    numToChinese: NC.numToChinese,
+};
 class CalendarPlugin extends obsidian.Plugin {
     constructor() {
         super(...arguments);
@@ -5370,6 +5728,7 @@ class CalendarPlugin extends obsidian.Plugin {
     async onload() {
         window.NCEngine = NC;
         window.NCNotes = NCNotesAPI;
+        window.NCDates = NCDatesAPI;
         this.options = defaultSettings;
         this.register(settings.subscribe((value) => {
             this.options = value;

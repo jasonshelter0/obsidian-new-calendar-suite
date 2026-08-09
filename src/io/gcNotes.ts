@@ -1,4 +1,4 @@
-import { TFile } from "obsidian";
+import { TFile, Vault } from "obsidian";
 import {
   getNotePath,
   getTemplateInfo,
@@ -69,7 +69,7 @@ export function getAllMonthlyNotes(): Record<string, TFile> {
     if (!folderPath) return monthlyNotes;
     const monthlyNotesFolder = vault.getAbstractFileByPath(folderPath);
     if (!monthlyNotesFolder) return monthlyNotes;
-    (vault as any).recurseChildren(monthlyNotesFolder, (note: TFile) => {
+    Vault.recurseChildren(monthlyNotesFolder, (note: TFile) => {
       if (note instanceof TFile) {
         const date = getDateFromFile(note, "month");
         if (date) {
@@ -104,7 +104,7 @@ export function getAllQuarterlyNotes(): Record<string, TFile> {
     if (!folder) return quarterly;
     const folderObj = vault.getAbstractFileByPath(folder);
     if (!folderObj) return quarterly;
-    (vault as any).recurseChildren(folderObj, (note: TFile) => {
+    Vault.recurseChildren(folderObj, (note: TFile) => {
       if (note instanceof TFile) {
         const date = getDateFromFile(note, "quarter");
         if (date) {
@@ -139,7 +139,7 @@ export function getAllYearlyNotes(): Record<string, TFile> {
     if (!folder) return yearly;
     const folderObj = vault.getAbstractFileByPath(folder);
     if (!folderObj) return yearly;
-    (vault as any).recurseChildren(folderObj, (note: TFile) => {
+    Vault.recurseChildren(folderObj, (note: TFile) => {
       if (note instanceof TFile) {
         const date = getDateFromFile(note, "year");
         if (date) {

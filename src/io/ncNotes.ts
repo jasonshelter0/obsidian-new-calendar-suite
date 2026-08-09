@@ -1,4 +1,4 @@
-import { TFile, Notice } from "obsidian";
+import { TFile, Notice, Vault } from "obsidian";
 import { NC } from "../utils/nc-engine";
 import { buildNCKey, parseNCFilename, getPhaseStart, getSeasonStart, getNCYearStart } from "../utils/nc-dates";
 import {
@@ -166,7 +166,7 @@ export function getAllNCNotes(
     const folderObj = vault.getAbstractFileByPath(folder);
     if (!folderObj) return notes;
 
-    (vault as any).recurseChildren(folderObj, (note: TFile) => {
+    Vault.recurseChildren(folderObj, (note: TFile) => {
       if (note instanceof TFile) {
         const basename = note.basename;
         const frontmatter = getFrontmatterFromCache(note);
