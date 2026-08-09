@@ -1,0 +1,67 @@
+{
+  "shouldConfirmBeforeCreate": true,
+  "weekStart": "locale",
+  "wordsPerDot": 150,
+  "wordCountOffset": 0,
+  "showWeeklyNote": true,
+  "weeklyNoteFormat": "",
+  "weeklyNoteTemplate": "",
+  "weeklyNoteFolder": "",
+  "localeOverride": "system-default",
+  "holidayRegion": "CN",
+  "daily": {
+    "enabled": true,
+    "format": "",
+    "template": "Templates/Daily Note Template.md",
+    "folder": "periodic-notes"
+  },
+  "weekly": {
+    "enabled": true,
+    "format": "",
+    "template": "",
+    "folder": "periodic-notes"
+  },
+  "monthly": {
+    "enabled": false,
+    "format": "",
+    "template": "",
+    "folder": ""
+  },
+  "quarterly": {
+    "enabled": false,
+    "format": "",
+    "template": "",
+    "folder": ""
+  },
+  "yearly": {
+    "enabled": false,
+    "format": "",
+    "template": "",
+    "folder": ""
+  },
+  "ncPhase": {
+    "enabled": true,
+    "format": "",
+    "template": "",
+    "folder": ""
+  },
+  "ncMonth": {
+    "enabled": true,
+    "format": "",
+    "template": "",
+    "folder": "tem"
+  },
+  "ncSeason": {
+    "enabled": true,
+    "format": "",
+    "template": "",
+    "folder": ""
+  },
+  "ncYear": {
+    "enabled": true,
+    "format": "",
+    "template": "",
+    "folder": ""
+  },
+  "hasMigratedLegacySettings": true
+}

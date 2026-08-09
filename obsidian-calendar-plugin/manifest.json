@@ -1,0 +1,11 @@
+{
+  "id": "calendar-nc",
+  "name": "Calendar NC",
+  "description": "A calendar plugin with New Calendar support. Based on the original Calendar plugin by Liam Cain.",
+  "version": "0.1.0",
+  "author": "Jason Shelter",
+  "authorUrl": "https://github.com/jasonshelter",
+  "fundingUrl": "https://www.buymeacoffee.com/liamcain",
+  "isDesktopOnly": false,
+  "minAppVersion": "0.9.11"
+}
