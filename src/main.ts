@@ -287,18 +287,20 @@ export default class CalendarPlugin extends Plugin {
   async loadHolidays(): Promise<void> {
     const region = this.options.holidayRegion;
     if (!region || region === "None") { holidays.set({}); return; }
-    const holidayPath = `${this.manifest.dir}/holidays/${region}`;
-    const adapter = this.app.vault.adapter;
     const holidayMap: Record<string, { type: string; name: string }> = {};
     try {
-      if (await adapter.exists(holidayPath)) {
-        const result = await adapter.list(holidayPath);
-        for (const file of result.files) {
-          if (file.endsWith(".json")) {
-            const content = await adapter.read(file);
-            const data = JSON.parse(content);
-            if (data.dates && Array.isArray(data.dates)) {
-              data.dates.forEach((d: any) => { if (d.date && d.type) holidayMap[d.date] = { type: d.type, name: d.name || "" }; });
+      const dataPath = `${this.manifest.dir}/holidays.json`;
+      const adapter = this.app.vault.adapter;
+      if (await adapter.exists(dataPath)) {
+        const content = await adapter.read(dataPath);
+        const all = JSON.parse(content);
+        const regionData = all[region];
+        if (regionData) {
+          for (const year of Object.values(regionData) as any[]) {
+            if (year.dates && Array.isArray(year.dates)) {
+              year.dates.forEach((d: any) => {
+                if (d.date && d.type) holidayMap[d.date] = { type: d.type, name: d.name || "" };
+              });
             }
           }
         }

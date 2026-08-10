@@ -796,24 +796,23 @@ class CalendarSettingsTab extends obsidian.PluginSettingTab {
         });
     }
     async addHolidayRegionSetting() {
-        const holidayPath = `${this.plugin.manifest.dir}/holidays`;
         let regions = ["None"];
         try {
+            const dataPath = `${this.plugin.manifest.dir}/holidays.json`;
             const adapter = this.app.vault.adapter;
-            if (await adapter.exists(holidayPath)) {
-                const result = await adapter.list(holidayPath);
-                const folders = result.folders
-                    .map((f) => f.split("/").pop())
-                    .filter((f) => f && f !== "None");
-                regions = ["None", ...folders];
+            if (await adapter.exists(dataPath)) {
+                const content = await adapter.read(dataPath);
+                const all = JSON.parse(content);
+                const keys = Object.keys(all).filter((k) => k !== "None");
+                regions = ["None", ...keys];
             }
         }
         catch (e) {
-            console.error("Failed to list holiday regions", e);
+            console.error("Failed to read holiday regions", e);
         }
         new obsidian.Setting(this.containerEl)
             .setName("Holiday Region")
-            .setDesc("Select a region to load custom holiday data from the 'holidays/' folder.")
+            .setDesc("Select a region to load holiday data.")
             .addDropdown((dropdown) => {
             regions.forEach((r) => dropdown.addOption(r, r));
             dropdown.setValue(this.plugin.options.holidayRegion || "None");
@@ -5876,19 +5875,21 @@ class CalendarPlugin extends obsidian.Plugin {
             holidays.set({});
             return;
         }
-        const holidayPath = `${this.manifest.dir}/holidays/${region}`;
-        const adapter = this.app.vault.adapter;
         const holidayMap = {};
         try {
-            if (await adapter.exists(holidayPath)) {
-                const result = await adapter.list(holidayPath);
-                for (const file of result.files) {
-                    if (file.endsWith(".json")) {
-                        const content = await adapter.read(file);
-                        const data = JSON.parse(content);
-                        if (data.dates && Array.isArray(data.dates)) {
-                            data.dates.forEach((d) => { if (d.date && d.type)
-                                holidayMap[d.date] = { type: d.type, name: d.name || "" }; });
+            const dataPath = `${this.manifest.dir}/holidays.json`;
+            const adapter = this.app.vault.adapter;
+            if (await adapter.exists(dataPath)) {
+                const content = await adapter.read(dataPath);
+                const all = JSON.parse(content);
+                const regionData = all[region];
+                if (regionData) {
+                    for (const year of Object.values(regionData)) {
+                        if (year.dates && Array.isArray(year.dates)) {
+                            year.dates.forEach((d) => {
+                                if (d.date && d.type)
+                                    holidayMap[d.date] = { type: d.type, name: d.name || "" };
+                            });
                         }
                     }
                 }

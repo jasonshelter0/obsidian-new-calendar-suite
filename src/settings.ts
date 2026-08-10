@@ -261,25 +261,24 @@ export class CalendarSettingsTab extends PluginSettingTab {
   }
 
   async addHolidayRegionSetting(): Promise<void> {
-    const holidayPath = `${this.plugin.manifest.dir}/holidays`;
     let regions: string[] = ["None"];
 
     try {
+      const dataPath = `${this.plugin.manifest.dir}/holidays.json`;
       const adapter = this.app.vault.adapter;
-      if (await adapter.exists(holidayPath)) {
-        const result = await adapter.list(holidayPath);
-        const folders = result.folders
-          .map((f) => f.split("/").pop())
-          .filter((f) => f && f !== "None");
-        regions = ["None", ...folders];
+      if (await adapter.exists(dataPath)) {
+        const content = await adapter.read(dataPath);
+        const all = JSON.parse(content);
+        const keys = Object.keys(all).filter((k) => k !== "None");
+        regions = ["None", ...keys];
       }
     } catch (e) {
-      console.error("Failed to list holiday regions", e);
+      console.error("Failed to read holiday regions", e);
     }
 
     new Setting(this.containerEl)
       .setName("Holiday Region")
-      .setDesc("Select a region to load custom holiday data from the 'holidays/' folder.")
+      .setDesc("Select a region to load holiday data.")
       .addDropdown((dropdown) => {
         regions.forEach((r) => dropdown.addOption(r, r));
         dropdown.setValue(this.plugin.options.holidayRegion || "None");
