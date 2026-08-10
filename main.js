@@ -1625,12 +1625,14 @@ const NC = {
         return NC.getNCWeekOfMonth(end, ny, nm);
     },
     /**
-     * Phase 周数分配: P1,P2,P3 各 floor(T/4) 周，P4 取余。
+     * Phase 周数分配: Num(i) = floor(T/4) + (i <= T%4 ? 1 : 0)
+     * Remainder weeks distributed to early phases, not the last.
      */
     _getPhaseSizes: (ny, nm) => {
         const T = NC._getTotalWeeks(ny, nm);
         const base = Math.floor(T / 4);
-        return [base, base, base, T - base * 3];
+        const rem = T % 4;
+        return [1, 2, 3, 4].map(i => base + (i <= rem ? 1 : 0));
     },
     /**
      * 计算给定 NC 月中的 Phase (1-4)
@@ -2707,8 +2709,8 @@ const { document: document_1 } = globals;
 
 function add_css() {
 	var style = element("style");
-	style.id = "svelte-1i6ogxj-style";
-	style.textContent = ".calendar-container.svelte-1i6ogxj.svelte-1i6ogxj{padding:10px;user-select:none;background-color:var(--background-primary);color:var(--text-normal)}.calendar-top-bar.svelte-1i6ogxj.svelte-1i6ogxj{position:sticky;top:0;background-color:var(--background-primary);z-index:10;padding-bottom:4px}.calendar-header.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;padding-top:2px;padding-bottom:4px}.month-matrix.svelte-1i6ogxj.svelte-1i6ogxj{display:grid;grid-template-rows:repeat(2, 1fr);grid-template-columns:repeat(8, 1fr);gap:2px}.calendar-title-row.svelte-1i6ogxj.svelte-1i6ogxj{text-align:center;margin-bottom:4px;font-weight:bold;font-size:1.1em;color:var(--text-accent);white-space:nowrap;display:flex;align-items:center;gap:6px;justify-content:center}.nc-month-text.svelte-1i6ogxj.svelte-1i6ogxj{white-space:nowrap}.calendar-gc-range.svelte-1i6ogxj.svelte-1i6ogxj{text-align:center;font-size:0.75em;color:var(--text-faint);margin-bottom:4px}.month-dot.svelte-1i6ogxj.svelte-1i6ogxj{width:6px;height:6px;border-radius:50%;background-color:var(--dot-color);opacity:0.25;transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}.month-dot.active.svelte-1i6ogxj.svelte-1i6ogxj{opacity:1;transform:scale(1.4);box-shadow:0 0 5px var(--dot-color)}.nav-btn.svelte-1i6ogxj.svelte-1i6ogxj{cursor:pointer;background:var(--background-secondary);border:1px solid var(--background-modifier-border);padding:3px 10px;border-radius:6px;color:var(--text-muted);font-size:0.85em;transition:all 0.15s ease}.nav-btn.svelte-1i6ogxj.svelte-1i6ogxj:hover{background-color:var(--background-modifier-hover);color:var(--text-normal);border-color:var(--text-accent)}.nav-btn-year.svelte-1i6ogxj.svelte-1i6ogxj{font-weight:600;font-size:0.85em}.nav-btn-today.svelte-1i6ogxj.svelte-1i6ogxj{font-weight:500;font-size:0.8em;background:var(--interactive-accent);color:var(--text-on-accent);border-color:var(--interactive-accent)}.nav-btn-today.svelte-1i6ogxj.svelte-1i6ogxj:hover{opacity:0.85}.gc-title-text.svelte-1i6ogxj.svelte-1i6ogxj{color:var(--text-accent)}.nc-year-text.svelte-1i6ogxj.svelte-1i6ogxj{cursor:pointer;color:var(--text-normal);transition:opacity 0.15s}.nc-year-text.svelte-1i6ogxj.svelte-1i6ogxj:hover{opacity:0.7}.nc-season-text.svelte-1i6ogxj.svelte-1i6ogxj{cursor:pointer;font-weight:bold;transition:opacity 0.15s}.nc-season-text.svelte-1i6ogxj.svelte-1i6ogxj:hover{opacity:0.7}.nc-month-text.svelte-1i6ogxj.svelte-1i6ogxj{cursor:pointer;font-weight:bold;white-space:nowrap;transition:opacity 0.15s}.nc-month-text.svelte-1i6ogxj.svelte-1i6ogxj:hover{opacity:0.7}.nc-sep.svelte-1i6ogxj.svelte-1i6ogxj{color:var(--text-faint);font-weight:normal}.nc-phase-buttons.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;justify-content:center;gap:6px;margin:4px 0 8px 0}.nc-phase-btn.svelte-1i6ogxj.svelte-1i6ogxj{cursor:pointer;background:var(--background-secondary);border:1px solid var(--background-modifier-border);padding:2px 10px;border-radius:6px;color:var(--text-muted);font-size:0.8em;font-weight:500;transition:all 0.15s ease}.nc-phase-btn.svelte-1i6ogxj.svelte-1i6ogxj:hover{filter:brightness(1.1);border-color:var(--text-accent)}.nc-phase-btn.active.svelte-1i6ogxj.svelte-1i6ogxj{color:#fff;border-color:transparent;font-weight:600}.calendar-subheader.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px}.calendar-nav.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;align-items:center;gap:2px;flex-shrink:0}.calendar-grid.svelte-1i6ogxj.svelte-1i6ogxj{width:100%;border-collapse:collapse;table-layout:fixed}.calendar-grid.svelte-1i6ogxj th.svelte-1i6ogxj{font-size:0.75em;color:var(--text-faint);text-transform:uppercase;font-weight:normal;padding-bottom:8px;width:13.1%;position:sticky;top:88px;background-color:var(--background-primary);z-index:9}.week-num-header.svelte-1i6ogxj.svelte-1i6ogxj{width:8% !important}.week-num.svelte-1i6ogxj.svelte-1i6ogxj{font-size:0.7em;color:var(--text-faint);vertical-align:middle !important}.week-num-stack.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2}.nc-week.svelte-1i6ogxj.svelte-1i6ogxj{font-size:1.3em;font-weight:bold}.gc-week.svelte-1i6ogxj.svelte-1i6ogxj{font-size:0.85em;color:var(--text-faint)}.calendar-grid.svelte-1i6ogxj td.svelte-1i6ogxj{cursor:pointer;vertical-align:top;height:92px;border:1px solid transparent;transition:background-color 0.1s;overflow:hidden}.calendar-grid.svelte-1i6ogxj td.svelte-1i6ogxj:hover{background-color:var(--background-modifier-hover);border-radius:4px}.day-content.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;padding:4px 2px}.primary-date.svelte-1i6ogxj.svelte-1i6ogxj{font-size:1em;line-height:1.2}.secondary-date.svelte-1i6ogxj.svelte-1i6ogxj{font-size:0.7em;line-height:1.2;margin-top:1px;white-space:nowrap}.not-current-month.svelte-1i6ogxj.svelte-1i6ogxj{opacity:0.3}.is-holiday.svelte-1i6ogxj.svelte-1i6ogxj{background-color:rgba(255, 0, 0, 0.05)}.is-transfer-workday.svelte-1i6ogxj.svelte-1i6ogxj{background-color:rgba(var(--text-muted-rgb), 0.1)}tr.phase-start.svelte-1i6ogxj td.svelte-1i6ogxj{border-top:1px solid var(--text-accent) !important}.is-today.svelte-1i6ogxj.svelte-1i6ogxj{box-shadow:inset 0 0 0 2px var(--text-accent) !important;border-radius:4px;z-index:1;position:relative}.is-today.svelte-1i6ogxj .primary-date.svelte-1i6ogxj{color:var(--text-accent);font-weight:bold}.is-selected.svelte-1i6ogxj.svelte-1i6ogxj{box-shadow:inset 0 0 0 1px var(--text-accent) !important;border-radius:4px;position:relative;z-index:0}.holiday-name.svelte-1i6ogxj.svelte-1i6ogxj{font-size:0.65em;line-height:1.1;color:var(--text-accent);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;font-weight:500}.dots.svelte-1i6ogxj.svelte-1i6ogxj{display:flex;justify-content:center;gap:2px;margin-top:2px;min-height:6px}.dot.svelte-1i6ogxj.svelte-1i6ogxj{width:4px;height:4px;border-radius:50%;background-color:var(--dot-color);border:1px solid var(--dot-color)}.dot.hollow.svelte-1i6ogxj.svelte-1i6ogxj{background-color:transparent !important}.dot.overflow-dot.svelte-1i6ogxj.svelte-1i6ogxj{width:6px;height:6px;border-radius:1px;background-color:var(--text-accent);border-color:var(--text-accent);transform:rotate(45deg)}.day-info.svelte-1i6ogxj.svelte-1i6ogxj{font-size:0.65em;line-height:1.1;margin-top:2px;color:var(--text-muted);text-align:center;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.nc-phase-chip.svelte-1i6ogxj.svelte-1i6ogxj{font-size:0.55em;line-height:1;padding:1px 3px;border-radius:3px;font-weight:600;margin-top:1px;opacity:0.7;text-align:center}";
+	style.id = "svelte-10n3spb-style";
+	style.textContent = ".calendar-container.svelte-10n3spb.svelte-10n3spb{padding:10px;user-select:none;background-color:var(--background-primary);color:var(--text-normal)}.calendar-top-bar.svelte-10n3spb.svelte-10n3spb{position:sticky;top:0;background-color:var(--background-primary);z-index:10;padding-bottom:4px}.calendar-header.svelte-10n3spb.svelte-10n3spb{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:6px;padding-top:2px;padding-bottom:4px}.month-matrix.svelte-10n3spb.svelte-10n3spb{display:grid;grid-template-rows:repeat(2, 1fr);grid-template-columns:repeat(8, 1fr);gap:2px}.calendar-title-row.svelte-10n3spb.svelte-10n3spb{text-align:center;margin-bottom:4px;font-weight:bold;font-size:1.1em;color:var(--text-accent);white-space:nowrap;display:flex;align-items:center;gap:6px;justify-content:center}.nc-month-text.svelte-10n3spb.svelte-10n3spb{white-space:nowrap}.calendar-gc-range.svelte-10n3spb.svelte-10n3spb{text-align:center;font-size:0.75em;color:var(--text-faint);margin-bottom:4px}.month-dot.svelte-10n3spb.svelte-10n3spb{width:6px;height:6px;border-radius:50%;background-color:var(--dot-color);opacity:0.25;transition:all 0.3s cubic-bezier(0.4, 0, 0.2, 1)}.month-dot.active.svelte-10n3spb.svelte-10n3spb{opacity:1;transform:scale(1.4);box-shadow:0 0 5px var(--dot-color)}.nav-chev.svelte-10n3spb.svelte-10n3spb{cursor:pointer;background:none !important;border:none !important;box-shadow:none !important;outline:none;padding:2px 4px;color:var(--text-muted);font-size:0.9em;font-family:monospace;transition:color 0.12s;line-height:1}.nav-chev.svelte-10n3spb.svelte-10n3spb:hover{color:var(--text-accent);background:none !important;box-shadow:none !important}.nav-chev-md.svelte-10n3spb.svelte-10n3spb{font-size:0.95em;letter-spacing:-1px}.nav-chev-lg.svelte-10n3spb.svelte-10n3spb{font-size:1.0em;letter-spacing:-2px;font-weight:600}.nav-btn-today.svelte-10n3spb.svelte-10n3spb{cursor:pointer;background:var(--interactive-accent);color:var(--text-on-accent);border:none;padding:3px 10px;border-radius:6px;font-size:0.8em;font-weight:500;transition:opacity 0.12s}.nav-btn-today.svelte-10n3spb.svelte-10n3spb:hover{opacity:0.85}.gc-title-text.svelte-10n3spb.svelte-10n3spb{color:var(--text-accent)}.nc-year-text.svelte-10n3spb.svelte-10n3spb{cursor:pointer;color:var(--text-normal);transition:opacity 0.15s}.nc-year-text.svelte-10n3spb.svelte-10n3spb:hover{opacity:0.7}.nc-season-text.svelte-10n3spb.svelte-10n3spb{cursor:pointer;font-weight:bold;transition:opacity 0.15s}.nc-season-text.svelte-10n3spb.svelte-10n3spb:hover{opacity:0.7}.nc-month-text.svelte-10n3spb.svelte-10n3spb{cursor:pointer;font-weight:bold;white-space:nowrap;transition:opacity 0.15s}.nc-month-text.svelte-10n3spb.svelte-10n3spb:hover{opacity:0.7}.nc-sep.svelte-10n3spb.svelte-10n3spb{color:var(--text-faint);font-weight:normal}.nc-phase-seg.svelte-10n3spb.svelte-10n3spb{display:inline-flex;border-radius:20px;overflow:hidden;border:1px solid var(--background-modifier-border)}.nc-phase-seg-btn.svelte-10n3spb.svelte-10n3spb{cursor:pointer;background:none;border:none;border-right:1px solid var(--background-modifier-border);padding:3px 14px;color:var(--text-muted);font-size:0.8em;font-weight:500;transition:all 0.15s ease;margin:0}.nc-phase-seg-btn.svelte-10n3spb.svelte-10n3spb:last-child{border-right:none}.nc-phase-seg-btn.svelte-10n3spb.svelte-10n3spb:hover{background:var(--background-modifier-hover);color:var(--text-normal)}.nc-phase-seg-btn.active.svelte-10n3spb.svelte-10n3spb{color:#fff;font-weight:600}.calendar-subheader.svelte-10n3spb.svelte-10n3spb{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:8px}.calendar-nav.svelte-10n3spb.svelte-10n3spb{display:flex;align-items:center;gap:2px;flex-shrink:0}.calendar-grid.svelte-10n3spb.svelte-10n3spb{width:100%;border-collapse:collapse;table-layout:fixed}.calendar-grid.svelte-10n3spb th.svelte-10n3spb{font-size:0.75em;color:var(--text-faint);text-transform:uppercase;font-weight:normal;padding-bottom:8px;width:13.1%;position:sticky;top:88px;background-color:var(--background-primary);z-index:9}.week-num-header.svelte-10n3spb.svelte-10n3spb{width:8% !important}.week-num.svelte-10n3spb.svelte-10n3spb{font-size:0.7em;color:var(--text-faint);vertical-align:middle !important}.week-num-stack.svelte-10n3spb.svelte-10n3spb{display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.2}.nc-week.svelte-10n3spb.svelte-10n3spb{font-size:1.3em;font-weight:bold}.gc-week.svelte-10n3spb.svelte-10n3spb{font-size:0.85em;color:var(--text-faint)}.calendar-grid.svelte-10n3spb td.svelte-10n3spb{cursor:pointer;vertical-align:top;height:92px;border:1px solid transparent;transition:background-color 0.1s;overflow:hidden}.calendar-grid.svelte-10n3spb td.svelte-10n3spb:hover{background-color:var(--background-modifier-hover);border-radius:4px}.day-content.svelte-10n3spb.svelte-10n3spb{display:flex;flex-direction:column;align-items:center;justify-content:flex-start;height:100%;padding:4px 2px}.primary-date.svelte-10n3spb.svelte-10n3spb{font-size:1em;line-height:1.2}.secondary-date.svelte-10n3spb.svelte-10n3spb{font-size:0.7em;line-height:1.2;margin-top:1px;white-space:nowrap}.not-current-month.svelte-10n3spb.svelte-10n3spb{opacity:0.3}.is-holiday.svelte-10n3spb.svelte-10n3spb{background-color:rgba(255, 0, 0, 0.05)}.is-transfer-workday.svelte-10n3spb.svelte-10n3spb{background-color:rgba(var(--text-muted-rgb), 0.1)}tr.phase-start.svelte-10n3spb td.svelte-10n3spb{border-top:1px solid var(--text-accent) !important}.is-today.svelte-10n3spb.svelte-10n3spb{box-shadow:inset 0 0 0 2px var(--text-accent) !important;border-radius:4px;z-index:1;position:relative}.is-today.svelte-10n3spb .primary-date.svelte-10n3spb{color:var(--text-accent);font-weight:bold}.is-selected.svelte-10n3spb.svelte-10n3spb{box-shadow:inset 0 0 0 1px var(--text-accent) !important;border-radius:4px;position:relative;z-index:0}.holiday-name.svelte-10n3spb.svelte-10n3spb{font-size:0.65em;line-height:1.1;color:var(--text-accent);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:1px;font-weight:500}.dots.svelte-10n3spb.svelte-10n3spb{display:flex;justify-content:center;gap:2px;margin-top:2px;min-height:6px}.dot.svelte-10n3spb.svelte-10n3spb{width:4px;height:4px;border-radius:50%;background-color:var(--dot-color);border:1px solid var(--dot-color)}.dot.hollow.svelte-10n3spb.svelte-10n3spb{background-color:transparent !important}.dot.overflow-dot.svelte-10n3spb.svelte-10n3spb{width:6px;height:6px;border-radius:1px;background-color:var(--text-accent);border-color:var(--text-accent);transform:rotate(45deg)}.day-info.svelte-10n3spb.svelte-10n3spb{font-size:0.65em;line-height:1.1;margin-top:2px;color:var(--text-muted);text-align:center;word-break:break-all;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}.nc-phase-chip.svelte-10n3spb.svelte-10n3spb{font-size:0.55em;line-height:1;padding:1px 3px;border-radius:3px;font-weight:600;margin-top:1px;opacity:0.7;text-align:center}";
 	append(document_1.head, style);
 }
 
@@ -2741,6 +2743,7 @@ function get_each_context_3(ctx, list, i) {
 function get_each_context_4(ctx, list, i) {
 	const child_ctx = ctx.slice();
 	child_ctx[53] = list[i];
+	child_ctx[55] = i;
 	return child_ctx;
 }
 
@@ -2796,13 +2799,13 @@ function create_if_block_12(ctx) {
 			span4 = element("span");
 			t10 = text(t10_value);
 			t11 = text("月");
-			attr(span0, "class", "nc-year-text svelte-1i6ogxj");
+			attr(span0, "class", "nc-year-text svelte-10n3spb");
 			attr(span0, "title", "Open NC Year note");
-			attr(span1, "class", "nc-sep svelte-1i6ogxj");
-			attr(span2, "class", "nc-season-text svelte-1i6ogxj");
+			attr(span1, "class", "nc-sep svelte-10n3spb");
+			attr(span2, "class", "nc-season-text svelte-10n3spb");
 			attr(span2, "title", "Open NC Season note");
-			attr(span3, "class", "nc-sep svelte-1i6ogxj");
-			attr(span4, "class", "nc-month-text svelte-1i6ogxj");
+			attr(span3, "class", "nc-sep svelte-10n3spb");
+			attr(span4, "class", "nc-month-text svelte-10n3spb");
 			set_style(span4, "color", /*ncInfo*/ ctx[10].color);
 			attr(span4, "title", "Open NC Month note");
 		},
@@ -2870,7 +2873,7 @@ function create_if_block_11(ctx) {
 		c() {
 			span = element("span");
 			t = text(/*title*/ ctx[12]);
-			attr(span, "class", "gc-title-text svelte-1i6ogxj");
+			attr(span, "class", "gc-title-text svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, span, anchor);
@@ -2900,7 +2903,7 @@ function create_if_block_10(ctx) {
 			t0 = text(t0_value);
 			t1 = text(" – ");
 			t2 = text(t2_value);
-			attr(div, "class", "calendar-gc-range svelte-1i6ogxj");
+			attr(div, "class", "calendar-gc-range svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -2927,8 +2930,8 @@ function create_if_block_9(ctx) {
 	return {
 		c() {
 			button = element("button");
-			button.textContent = "季-";
-			attr(button, "class", "nav-btn svelte-1i6ogxj");
+			button.textContent = "<<";
+			attr(button, "class", "nav-chev nav-chev-md svelte-10n3spb");
 			attr(button, "title", "Previous season");
 		},
 		m(target, anchor) {
@@ -2966,7 +2969,7 @@ function create_if_block_8(ctx) {
 				each_blocks[i].c();
 			}
 
-			attr(span, "class", "month-matrix svelte-1i6ogxj");
+			attr(span, "class", "month-matrix svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, span, anchor);
@@ -3013,7 +3016,7 @@ function create_each_block_5(ctx) {
 	return {
 		c() {
 			span = element("span");
-			attr(span, "class", "month-dot svelte-1i6ogxj");
+			attr(span, "class", "month-dot svelte-10n3spb");
 			set_style(span, "--dot-color", ncMonthColour[/*mIdx*/ ctx[56]]);
 			attr(span, "title", "" + (parseInt(/*mIdx*/ ctx[56]) + "月"));
 			toggle_class(span, "active", /*ncInfo*/ ctx[10].nm === parseInt(/*mIdx*/ ctx[56]));
@@ -3041,8 +3044,8 @@ function create_if_block_7(ctx) {
 	return {
 		c() {
 			button = element("button");
-			button.textContent = "季+";
-			attr(button, "class", "nav-btn svelte-1i6ogxj");
+			button.textContent = ">>";
+			attr(button, "class", "nav-chev nav-chev-md svelte-10n3spb");
 			attr(button, "title", "Next season");
 		},
 		m(target, anchor) {
@@ -3080,7 +3083,7 @@ function create_if_block_6(ctx) {
 				each_blocks[i].c();
 			}
 
-			attr(div, "class", "nc-phase-buttons svelte-1i6ogxj");
+			attr(div, "class", "nc-phase-seg svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -3118,7 +3121,7 @@ function create_if_block_6(ctx) {
 	};
 }
 
-// (342:8) {#each [1, 2, 3, 4] as phase}
+// (342:8) {#each [1, 2, 3, 4] as phase, idx}
 function create_each_block_4(ctx) {
 	let button;
 	let t0;
@@ -3136,14 +3139,16 @@ function create_each_block_4(ctx) {
 			button = element("button");
 			t0 = text("P");
 			t1 = text(/*phase*/ ctx[53]);
-			attr(button, "class", "nc-phase-btn svelte-1i6ogxj");
+			attr(button, "class", "nc-phase-seg-btn svelte-10n3spb");
 
 			attr(button, "style", button_style_value = /*ncInfo*/ ctx[10].phase === /*phase*/ ctx[53]
 			? "background-color:" + /*ncInfo*/ ctx[10].color + ";border-color:" + /*ncInfo*/ ctx[10].color
 			: "");
 
-			attr(button, "title", "Open Phase " + /*phase*/ ctx[53] + " note");
+			attr(button, "title", "Phase " + /*phase*/ ctx[53]);
 			toggle_class(button, "active", /*ncInfo*/ ctx[10].phase === /*phase*/ ctx[53]);
+			toggle_class(button, "first", /*idx*/ ctx[55] === 0);
+			toggle_class(button, "last", /*idx*/ ctx[55] === 3);
 		},
 		m(target, anchor) {
 			insert(target, button, anchor);
@@ -3176,14 +3181,14 @@ function create_each_block_4(ctx) {
 	};
 }
 
-// (352:8) {#if showWeekNums}
+// (358:8) {#if showWeekNums}
 function create_if_block_5(ctx) {
 	let th;
 
 	return {
 		c() {
 			th = element("th");
-			attr(th, "class", "week-num-header svelte-1i6ogxj");
+			attr(th, "class", "week-num-header svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, th, anchor);
@@ -3194,7 +3199,7 @@ function create_if_block_5(ctx) {
 	};
 }
 
-// (355:8) {#each weekDays as day}
+// (361:8) {#each weekDays as day}
 function create_each_block_3(ctx) {
 	let th;
 	let t_value = /*day*/ ctx[45] + "";
@@ -3204,7 +3209,7 @@ function create_each_block_3(ctx) {
 		c() {
 			th = element("th");
 			t = text(t_value);
-			attr(th, "class", "svelte-1i6ogxj");
+			attr(th, "class", "svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, th, anchor);
@@ -3219,7 +3224,7 @@ function create_each_block_3(ctx) {
 	};
 }
 
-// (363:10) {#if showWeekNums}
+// (369:10) {#if showWeekNums}
 function create_if_block_3(ctx) {
 	let td;
 	let mounted;
@@ -3241,7 +3246,7 @@ function create_if_block_3(ctx) {
 		c() {
 			td = element("td");
 			if_block.c();
-			attr(td, "class", "week-num svelte-1i6ogxj");
+			attr(td, "class", "week-num svelte-10n3spb");
 			toggle_class(td, "is-selected", /*selectedId*/ ctx[1] === getDateUID(/*week*/ ctx[42][0].date, "week"));
 		},
 		m(target, anchor) {
@@ -3281,7 +3286,7 @@ function create_if_block_3(ctx) {
 	};
 }
 
-// (378:14) {:else}
+// (384:14) {:else}
 function create_else_block(ctx) {
 	let t_value = /*week*/ ctx[42][0].date.format("ww") + "";
 	let t;
@@ -3302,7 +3307,7 @@ function create_else_block(ctx) {
 	};
 }
 
-// (369:14) {#if mode === "NC" && ncInfo}
+// (375:14) {#if mode === "NC" && ncInfo}
 function create_if_block_4(ctx) {
 	let div2;
 	let div0;
@@ -3321,10 +3326,10 @@ function create_if_block_4(ctx) {
 			t1 = space();
 			div1 = element("div");
 			t2 = text(t2_value);
-			attr(div0, "class", "nc-week svelte-1i6ogxj");
+			attr(div0, "class", "nc-week svelte-10n3spb");
 			set_style(div0, "color", /*ncInfo*/ ctx[10].color);
-			attr(div1, "class", "gc-week svelte-1i6ogxj");
-			attr(div2, "class", "week-num-stack svelte-1i6ogxj");
+			attr(div1, "class", "gc-week svelte-10n3spb");
+			attr(div2, "class", "week-num-stack svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, div2, anchor);
@@ -3349,7 +3354,7 @@ function create_if_block_4(ctx) {
 	};
 }
 
-// (401:16) {#if day.metadata.holidayName}
+// (407:16) {#if day.metadata.holidayName}
 function create_if_block_2(ctx) {
 	let div;
 	let t_value = /*day*/ ctx[45].metadata.holidayName + "";
@@ -3359,7 +3364,7 @@ function create_if_block_2(ctx) {
 		c() {
 			div = element("div");
 			t = text(t_value);
-			attr(div, "class", "holiday-name svelte-1i6ogxj");
+			attr(div, "class", "holiday-name svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -3374,7 +3379,7 @@ function create_if_block_2(ctx) {
 	};
 }
 
-// (404:16) {#if mode === "NC" && day.isPhaseStart && day.isCurrentMonth}
+// (410:16) {#if mode === "NC" && day.isPhaseStart && day.isCurrentMonth}
 function create_if_block_1(ctx) {
 	let div;
 	let t0;
@@ -3386,7 +3391,7 @@ function create_if_block_1(ctx) {
 			div = element("div");
 			t0 = text("P");
 			t1 = text(t1_value);
-			attr(div, "class", "nc-phase-chip svelte-1i6ogxj");
+			attr(div, "class", "nc-phase-chip svelte-10n3spb");
 			set_style(div, "background", /*day*/ ctx[45].nc.color);
 			set_style(div, "color", "#fff");
 		},
@@ -3408,7 +3413,7 @@ function create_if_block_1(ctx) {
 	};
 }
 
-// (408:18) {#each day.metadata.dots as dot}
+// (414:18) {#each day.metadata.dots as dot}
 function create_each_block_2(ctx) {
 	let span;
 	let span_class_value;
@@ -3416,7 +3421,7 @@ function create_each_block_2(ctx) {
 	return {
 		c() {
 			span = element("span");
-			attr(span, "class", span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-1i6ogxj");
+			attr(span, "class", span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-10n3spb");
 
 			set_style(span, "--dot-color", /*dot*/ ctx[48].color === "default"
 			? "var(--text-muted)"
@@ -3428,7 +3433,7 @@ function create_each_block_2(ctx) {
 			insert(target, span, anchor);
 		},
 		p(ctx, dirty) {
-			if (dirty[0] & /*days*/ 2048 && span_class_value !== (span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-1i6ogxj")) {
+			if (dirty[0] & /*days*/ 2048 && span_class_value !== (span_class_value = "dot " + (/*dot*/ ctx[48].className || "") + " svelte-10n3spb")) {
 				attr(span, "class", span_class_value);
 			}
 
@@ -3448,7 +3453,7 @@ function create_each_block_2(ctx) {
 	};
 }
 
-// (416:16) {#if day.metadata.info}
+// (422:16) {#if day.metadata.info}
 function create_if_block(ctx) {
 	let div;
 	let t_value = /*day*/ ctx[45].metadata.info + "";
@@ -3458,7 +3463,7 @@ function create_if_block(ctx) {
 		c() {
 			div = element("div");
 			t = text(t_value);
-			attr(div, "class", "day-info svelte-1i6ogxj");
+			attr(div, "class", "day-info svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, div, anchor);
@@ -3473,7 +3478,7 @@ function create_if_block(ctx) {
 	};
 }
 
-// (383:10) {#each week as day, j}
+// (389:10) {#each week as day, j}
 function create_each_block_1(ctx) {
 	let td;
 	let div3;
@@ -3550,21 +3555,21 @@ function create_each_block_1(ctx) {
 
 			t6 = space();
 			if (if_block2) if_block2.c();
-			attr(div0, "class", "primary-date svelte-1i6ogxj");
+			attr(div0, "class", "primary-date svelte-10n3spb");
 
 			set_style(div0, "color", /*mode*/ ctx[0] === "NC"
 			? /*day*/ ctx[45].nc.color
 			: "inherit");
 
-			attr(div1, "class", "secondary-date svelte-1i6ogxj");
+			attr(div1, "class", "secondary-date svelte-10n3spb");
 
 			set_style(div1, "color", /*mode*/ ctx[0] === "GC"
 			? /*day*/ ctx[45].nc.color
 			: "inherit");
 
-			attr(div2, "class", "dots svelte-1i6ogxj");
-			attr(div3, "class", "day-content svelte-1i6ogxj");
-			attr(td, "class", "svelte-1i6ogxj");
+			attr(div2, "class", "dots svelte-10n3spb");
+			attr(div3, "class", "day-content svelte-10n3spb");
+			attr(td, "class", "svelte-10n3spb");
 			toggle_class(td, "is-today", /*day*/ ctx[45].isToday);
 			toggle_class(td, "is-selected", /*selectedId*/ ctx[1] === getDateUID(/*day*/ ctx[45].date, "day"));
 			toggle_class(td, "not-current-month", !/*day*/ ctx[45].isCurrentMonth);
@@ -3726,7 +3731,7 @@ function create_each_block_1(ctx) {
 	};
 }
 
-// (361:6) {#each days as week, i}
+// (367:6) {#each days as week, i}
 function create_each_block(ctx) {
 	let tr;
 	let t0;
@@ -3750,7 +3755,7 @@ function create_each_block(ctx) {
 			}
 
 			t1 = space();
-			attr(tr, "class", "svelte-1i6ogxj");
+			attr(tr, "class", "svelte-10n3spb");
 			toggle_class(tr, "phase-start", /*i*/ ctx[44] > 0 && /*mode*/ ctx[0] === "NC" && /*week*/ ctx[42].phase !== /*days*/ ctx[11][/*i*/ ctx[44] - 1].phase);
 		},
 		m(target, anchor) {
@@ -3822,24 +3827,16 @@ function create_fragment$1(ctx) {
 	let div3;
 	let div1;
 	let button0;
-	let t2_value = (/*mode*/ ctx[0] === "NC" ? "年-" : "Y-") + "";
-	let t2;
 	let t3;
 	let t4;
 	let button1;
-	let t5_value = (/*mode*/ ctx[0] === "NC" ? "月-" : "M-") + "";
-	let t5;
 	let t6;
 	let t7;
 	let div2;
 	let button2;
-	let t8_value = (/*mode*/ ctx[0] === "NC" ? "月+" : "M+") + "";
-	let t8;
 	let t9;
 	let t10;
 	let button3;
-	let t11_value = (/*mode*/ ctx[0] === "NC" ? "年+" : "Y+") + "";
-	let t11;
 	let t12;
 	let div4;
 	let t13;
@@ -3893,23 +3890,23 @@ function create_fragment$1(ctx) {
 			div3 = element("div");
 			div1 = element("div");
 			button0 = element("button");
-			t2 = text(t2_value);
+			button0.textContent = "<<<";
 			t3 = space();
 			if (if_block2) if_block2.c();
 			t4 = space();
 			button1 = element("button");
-			t5 = text(t5_value);
+			button1.textContent = "<";
 			t6 = space();
 			if (if_block3) if_block3.c();
 			t7 = space();
 			div2 = element("div");
 			button2 = element("button");
-			t8 = text(t8_value);
+			button2.textContent = ">";
 			t9 = space();
 			if (if_block4) if_block4.c();
 			t10 = space();
 			button3 = element("button");
-			t11 = text(t11_value);
+			button3.textContent = ">>>";
 			t12 = space();
 			div4 = element("div");
 			if (if_block5) if_block5.c();
@@ -3934,21 +3931,23 @@ function create_fragment$1(ctx) {
 				each_blocks[i].c();
 			}
 
-			attr(div0, "class", "calendar-title-row svelte-1i6ogxj");
-			attr(button0, "class", "nav-btn nav-btn-year svelte-1i6ogxj");
+			attr(div0, "class", "calendar-title-row svelte-10n3spb");
+			attr(button0, "class", "nav-chev nav-chev-lg svelte-10n3spb");
 			attr(button0, "title", "Previous year");
-			attr(button1, "class", "nav-btn svelte-1i6ogxj");
-			attr(div1, "class", "calendar-nav svelte-1i6ogxj");
-			attr(button2, "class", "nav-btn svelte-1i6ogxj");
-			attr(button3, "class", "nav-btn nav-btn-year svelte-1i6ogxj");
+			attr(button1, "class", "nav-chev svelte-10n3spb");
+			attr(button1, "title", "Previous month");
+			attr(div1, "class", "calendar-nav svelte-10n3spb");
+			attr(button2, "class", "nav-chev svelte-10n3spb");
+			attr(button2, "title", "Next month");
+			attr(button3, "class", "nav-chev nav-chev-lg svelte-10n3spb");
 			attr(button3, "title", "Next year");
-			attr(div2, "class", "calendar-nav svelte-1i6ogxj");
-			attr(div3, "class", "calendar-header svelte-1i6ogxj");
-			attr(button4, "class", "nav-btn nav-btn-today svelte-1i6ogxj");
-			attr(div4, "class", "calendar-subheader svelte-1i6ogxj");
-			attr(table, "class", "calendar-grid svelte-1i6ogxj");
-			attr(div5, "class", "calendar-top-bar svelte-1i6ogxj");
-			attr(div6, "class", "calendar-container svelte-1i6ogxj");
+			attr(div2, "class", "calendar-nav svelte-10n3spb");
+			attr(div3, "class", "calendar-header svelte-10n3spb");
+			attr(button4, "class", "nav-btn-today svelte-10n3spb");
+			attr(div4, "class", "calendar-subheader svelte-10n3spb");
+			attr(table, "class", "calendar-grid svelte-10n3spb");
+			attr(div5, "class", "calendar-top-bar svelte-10n3spb");
+			attr(div6, "class", "calendar-container svelte-10n3spb");
 		},
 		m(target, anchor) {
 			insert(target, div6, anchor);
@@ -3961,23 +3960,19 @@ function create_fragment$1(ctx) {
 			append(div5, div3);
 			append(div3, div1);
 			append(div1, button0);
-			append(button0, t2);
 			append(div1, t3);
 			if (if_block2) if_block2.m(div1, null);
 			append(div1, t4);
 			append(div1, button1);
-			append(button1, t5);
 			append(div3, t6);
 			if (if_block3) if_block3.m(div3, null);
 			append(div3, t7);
 			append(div3, div2);
 			append(div2, button2);
-			append(button2, t8);
 			append(div2, t9);
 			if (if_block4) if_block4.m(div2, null);
 			append(div2, t10);
 			append(div2, button3);
-			append(button3, t11);
 			append(div5, t12);
 			append(div5, div4);
 			if (if_block5) if_block5.m(div4, null);
@@ -4039,8 +4034,6 @@ function create_fragment$1(ctx) {
 				if_block1 = null;
 			}
 
-			if (dirty[0] & /*mode*/ 1 && t2_value !== (t2_value = (/*mode*/ ctx[0] === "NC" ? "年-" : "Y-") + "")) set_data(t2, t2_value);
-
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block2) {
 					if_block2.p(ctx, dirty);
@@ -4053,8 +4046,6 @@ function create_fragment$1(ctx) {
 				if_block2.d(1);
 				if_block2 = null;
 			}
-
-			if (dirty[0] & /*mode*/ 1 && t5_value !== (t5_value = (/*mode*/ ctx[0] === "NC" ? "月-" : "M-") + "")) set_data(t5, t5_value);
 
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block3) {
@@ -4069,8 +4060,6 @@ function create_fragment$1(ctx) {
 				if_block3 = null;
 			}
 
-			if (dirty[0] & /*mode*/ 1 && t8_value !== (t8_value = (/*mode*/ ctx[0] === "NC" ? "月+" : "M+") + "")) set_data(t8, t8_value);
-
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block4) {
 					if_block4.p(ctx, dirty);
@@ -4083,8 +4072,6 @@ function create_fragment$1(ctx) {
 				if_block4.d(1);
 				if_block4 = null;
 			}
-
-			if (dirty[0] & /*mode*/ 1 && t11_value !== (t11_value = (/*mode*/ ctx[0] === "NC" ? "年+" : "Y+") + "")) set_data(t11, t11_value);
 
 			if (/*mode*/ ctx[0] === "NC" && /*ncInfo*/ ctx[10]) {
 				if (if_block5) {
@@ -4620,7 +4607,7 @@ function instance$1($$self, $$props, $$invalidate) {
 class CalendarGrid extends SvelteComponent {
 	constructor(options) {
 		super();
-		if (!document_1.getElementById("svelte-1i6ogxj-style")) add_css();
+		if (!document_1.getElementById("svelte-10n3spb-style")) add_css();
 
 		init(
 			this,

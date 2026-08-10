@@ -330,11 +330,11 @@
   <!-- Row 2: Nav with dots in middle -->
   <div class="calendar-header">
     <div class="calendar-nav">
-      <button class="nav-btn nav-btn-year" on:click={prevYear} title="Previous year">{mode === "NC" ? "年-" : "Y-"}</button>
+      <button class="nav-chev nav-chev-lg" on:click={prevYear} title="Previous year">&lt;&lt;&lt;</button>
       {#if mode === "NC" && ncInfo}
-        <button class="nav-btn" on:click={prevSeason} title="Previous season">季-</button>
+        <button class="nav-chev nav-chev-md" on:click={prevSeason} title="Previous season">&lt;&lt;</button>
       {/if}
-      <button class="nav-btn" on:click={prevMonth}>{mode === "NC" ? "月-" : "M-"}</button>
+      <button class="nav-chev" on:click={prevMonth} title="Previous month">&lt;</button>
     </div>
 
     {#if mode === "NC" && ncInfo}
@@ -344,24 +344,30 @@
     {/if}
 
     <div class="calendar-nav">
-      <button class="nav-btn" on:click={nextMonth}>{mode === "NC" ? "月+" : "M+"}</button>
+      <button class="nav-chev" on:click={nextMonth} title="Next month">&gt;</button>
       {#if mode === "NC" && ncInfo}
-        <button class="nav-btn" on:click={nextSeason} title="Next season">季+</button>
+        <button class="nav-chev nav-chev-md" on:click={nextSeason} title="Next season">&gt;&gt;</button>
       {/if}
-      <button class="nav-btn nav-btn-year" on:click={nextYear} title="Next year">{mode === "NC" ? "年+" : "Y+"}</button>
+      <button class="nav-chev nav-chev-lg" on:click={nextYear} title="Next year">&gt;&gt;&gt;</button>
     </div>
   </div>
 
   <!-- Row 3: Phase buttons + Today -->
   <div class="calendar-subheader">
     {#if mode === "NC" && ncInfo}
-      <div class="nc-phase-buttons">
-        {#each [1, 2, 3, 4] as phase}
-          <button class="nc-phase-btn" class:active={ncInfo.phase === phase} style={ncInfo.phase === phase ? "background-color:" + ncInfo.color + ";border-color:" + ncInfo.color : ""} on:click={() => onClickNCPhase?.(ncInfo.ny, ncInfo.nm, phase)} title={"Open Phase " + phase + " note"}>P{phase}</button>
+      <div class="nc-phase-seg">
+        {#each [1, 2, 3, 4] as phase, idx}
+          <button class="nc-phase-seg-btn"
+            class:active={ncInfo.phase === phase}
+            class:first={idx === 0}
+            class:last={idx === 3}
+            style={ncInfo.phase === phase ? "background-color:" + ncInfo.color + ";border-color:" + ncInfo.color : ""}
+            on:click={() => onClickNCPhase?.(ncInfo.ny, ncInfo.nm, phase)}
+            title={"Phase " + phase}>P{phase}</button>
         {/each}
       </div>
     {/if}
-    <button class="nav-btn nav-btn-today" on:click={goToday}>Today</button>
+    <button class="nav-btn-today" on:click={goToday}>Today</button>
   </div>
   <table class="calendar-grid">
     <thead>
@@ -504,31 +510,43 @@
     transform: scale(1.4);
     box-shadow: 0 0 5px var(--dot-color);
   }
-  .nav-btn {
+  .nav-chev {
     cursor: pointer;
-    background: var(--background-secondary);
-    border: 1px solid var(--background-modifier-border);
-    padding: 3px 10px;
-    border-radius: 6px;
+    background: none !important;
+    border: none !important;
+    box-shadow: none !important;
+    outline: none;
+    padding: 2px 4px;
     color: var(--text-muted);
-    font-size: 0.85em;
-    transition: all 0.15s ease;
+    font-size: 0.9em;
+    font-family: monospace;
+    transition: color 0.12s;
+    line-height: 1;
   }
-  .nav-btn:hover {
-    background-color: var(--background-modifier-hover);
-    color: var(--text-normal);
-    border-color: var(--text-accent);
+  .nav-chev:hover {
+    color: var(--text-accent);
+    background: none !important;
+    box-shadow: none !important;
   }
-       .nav-btn-year {
-         font-weight: 600;
-         font-size: 0.85em;
-       }
+  .nav-chev-md {
+    font-size: 0.95em;
+    letter-spacing: -1px;
+  }
+  .nav-chev-lg {
+    font-size: 1.0em;
+    letter-spacing: -2px;
+    font-weight: 600;
+  }
        .nav-btn-today {
-         font-weight: 500;
-         font-size: 0.8em;
+         cursor: pointer;
          background: var(--interactive-accent);
          color: var(--text-on-accent);
-         border-color: var(--interactive-accent);
+         border: none;
+         padding: 3px 10px;
+         border-radius: 6px;
+         font-size: 0.8em;
+         font-weight: 500;
+         transition: opacity 0.12s;
        }
        .nav-btn-today:hover {
          opacity: 0.85;
@@ -560,30 +578,33 @@
          font-weight: normal;
        }
 
-       .nc-phase-buttons {
-         display: flex;
-         justify-content: center;
-         gap: 6px;
-         margin: 4px 0 8px 0;
-       }
-       .nc-phase-btn {
-         cursor: pointer;
-         background: var(--background-secondary);
+       .nc-phase-seg {
+         display: inline-flex;
+         border-radius: 20px;
+         overflow: hidden;
          border: 1px solid var(--background-modifier-border);
-         padding: 2px 10px;
-         border-radius: 6px;
+       }
+       .nc-phase-seg-btn {
+         cursor: pointer;
+         background: none;
+         border: none;
+         border-right: 1px solid var(--background-modifier-border);
+         padding: 3px 14px;
          color: var(--text-muted);
          font-size: 0.8em;
          font-weight: 500;
          transition: all 0.15s ease;
+         margin: 0;
        }
-       .nc-phase-btn:hover {
-         filter: brightness(1.1);
-         border-color: var(--text-accent);
+       .nc-phase-seg-btn:last-child {
+         border-right: none;
        }
-       .nc-phase-btn.active {
+       .nc-phase-seg-btn:hover {
+         background: var(--background-modifier-hover);
+         color: var(--text-normal);
+       }
+       .nc-phase-seg-btn.active {
          color: #fff;
-         border-color: transparent;
          font-weight: 600;
        }
 

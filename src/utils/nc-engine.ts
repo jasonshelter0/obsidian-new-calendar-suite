@@ -278,12 +278,14 @@ export const NC = {
   },
 
   /**
-   * Phase 周数分配: P1,P2,P3 各 floor(T/4) 周，P4 取余。
+   * Phase 周数分配: Num(i) = floor(T/4) + (i <= T%4 ? 1 : 0)
+   * Remainder weeks distributed to early phases, not the last.
    */
   _getPhaseSizes: (ny: number, nm: number) => {
     const T = NC._getTotalWeeks(ny, nm);
     const base = Math.floor(T / 4);
-    return [base, base, base, T - base * 3];
+    const rem = T % 4;
+    return [1,2,3,4].map(i => base + (i <= rem ? 1 : 0));
   },
 
   /**
