@@ -1,8 +1,8 @@
 import type { Moment, WeekSpec } from "moment";
-import { App, Plugin, WorkspaceLeaf, TFile } from "obsidian";
+import { App, Plugin, WorkspaceLeaf, TFile, requestUrl } from "obsidian";
 
 import { VIEW_TYPE_CALENDAR, VIEW_TYPE_NC_CALENDAR, SETTINGS_UPDATED } from "./constants";
-import { settings, holidays, dailyNotes, weeklyNotes, monthlyNotes, quarterlyNotes, yearlyNotes, ncPhaseNotes, ncMonthNotes, ncSeasonNotes, ncYearNotes } from "./ui/stores";
+import { settings, holidays, holidayMeta, dailyNotes, weeklyNotes, monthlyNotes, quarterlyNotes, yearlyNotes, ncPhaseNotes, ncMonthNotes, ncSeasonNotes, ncYearNotes } from "./ui/stores";
 import {
   CalendarSettingsTab,
   ISettings,
@@ -291,9 +291,31 @@ export default class CalendarPlugin extends Plugin {
     try {
       const dataPath = `${this.manifest.dir}/holidays.json`;
       const adapter = this.app.vault.adapter;
+
+      // Auto-download from GitHub if file missing (e.g. BRAT installs)
+      if (!(await adapter.exists(dataPath))) {
+        console.log("[New Calendar Suite] holidays.json not found — downloading from GitHub...");
+        try {
+          const url = "https://raw.githubusercontent.com/jasonshelter0/obsidian-new-calendar-suite/main/holidays.json";
+          const resp = await requestUrl({ url });
+          if (resp.status === 200) {
+            const raw = JSON.parse(resp.text);
+            raw._meta = { source: "v" + this.manifest.version, updated: new Date().toISOString().slice(0, 10) };
+            await adapter.write(dataPath, JSON.stringify(raw, null, 2));
+            console.log("[New Calendar Suite] holidays.json downloaded successfully");
+          } else {
+            console.warn("[New Calendar Suite] holidays.json download failed — HTTP", resp.status);
+          }
+        } catch (e) {
+          console.warn("[New Calendar Suite] holidays.json download failed:", e.message || e);
+          console.warn("[New Calendar Suite] Holiday data unavailable. You can download it manually from the plugin's GitHub releases.");
+        }
+      }
+
       if (await adapter.exists(dataPath)) {
         const content = await adapter.read(dataPath);
         const all = JSON.parse(content);
+        holidayMeta.set(all._meta || {});
         const regionData = all[region];
         if (regionData) {
           for (const year of Object.values(regionData) as any[]) {

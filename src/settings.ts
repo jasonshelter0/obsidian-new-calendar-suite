@@ -8,10 +8,12 @@ import {
   TFolder,
 } from "obsidian";
 import type { ILocaleOverride, IWeekStartOption } from "obsidian-calendar-ui";
+import { get } from "svelte/store";
 
 import { DEFAULT_WEEK_FORMAT, DEFAULT_WORDS_PER_DOT } from "src/constants";
 
 import type CalendarPlugin from "./main";
+import { holidayMeta } from "./ui/stores";
 
 export interface IPeriodicNoteSettings {
   enabled: boolean;
@@ -286,6 +288,14 @@ export class CalendarSettingsTab extends PluginSettingTab {
           await this.plugin.writeOptions(() => ({ holidayRegion: value }));
         });
       });
+
+    const meta = get(holidayMeta);
+    const statusEl = this.containerEl.createDiv({ cls: "setting-item-description" });
+    if (meta.source) {
+      statusEl.setText(`Holiday data: ${meta.source} (updated ${meta.updated || "unknown"})`);
+    } else {
+      statusEl.setText("Holiday data: not loaded. Select a region above to auto-download.");
+    }
   }
 
   addDotThresholdSetting(): void {

@@ -140,3 +140,4 @@ function createSelectedFileStore() {
 
 export const activeFile = createSelectedFileStore();
 export const holidays = writable<Record<string, { type: string; name: string }>>({});
+export const holidayMeta = writable<{ source?: string; updated?: string }>({});
