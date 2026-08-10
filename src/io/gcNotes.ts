@@ -1,4 +1,5 @@
 import { TFile, Vault } from "obsidian";
+import { NC } from "../utils/nc-engine";
 import {
   getNotePath,
   getTemplateInfo,
@@ -45,7 +46,11 @@ async function createPeriodicNote(
   const [templateContents, IFoldInfo] = await getTemplateInfo(template);
 
   try {
-    const contents = replaceTemplateTokens(templateContents, date, { format });
+    const contents = replaceTemplateTokens(templateContents, date, {
+      format,
+      nc: true,
+      ncInfo: NC.getNCDate(date),
+    });
     const createdFile = await vault.create(normalizedPath, contents);
     if (IFoldInfo) (window.app as any).foldManager.save(createdFile, IFoldInfo);
     return createdFile;

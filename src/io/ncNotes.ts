@@ -20,16 +20,21 @@ function injectFrontmatter(
   ncDate: string,
   gcDate: string,
 ): string {
-  const fmBlock = [
-    `nc-type: ${ncType}`,
-    `nc-date: "${ncDate}"`,
-    `gc-date: ${gcDate}`,
-  ].join("\n");
-
-  // If template already has frontmatter, insert into existing block
+  // If template already has frontmatter with nc-type, template provides
+  // its own YAML — don't inject duplicate fields.
   if (contents.startsWith("---")) {
     const endIdx = contents.indexOf("---", 3);
     if (endIdx !== -1) {
+      const existingFm = contents.slice(0, endIdx + 3);
+      if (/nc-type\s*:/.test(existingFm)) {
+        return contents; // template already has nc-type, skip injection
+      }
+      // Has frontmatter but no nc-type — inject fields into existing block
+      const fmBlock = [
+        `nc-type: ${ncType}`,
+        `nc-date: "${ncDate}"`,
+        `gc-date: ${gcDate}`,
+      ].join("\n");
       return (
         contents.slice(0, endIdx) +
         fmBlock +
@@ -39,7 +44,12 @@ function injectFrontmatter(
     }
   }
 
-  // Prepend new frontmatter block
+  // No frontmatter at all — prepend one
+  const fmBlock = [
+    `nc-type: ${ncType}`,
+    `nc-date: "${ncDate}"`,
+    `gc-date: ${gcDate}`,
+  ].join("\n");
   return `---\n${fmBlock}\n---\n${contents}`;
 }
 

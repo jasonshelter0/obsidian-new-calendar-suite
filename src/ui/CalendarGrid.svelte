@@ -31,6 +31,7 @@
   export let onClickNCMonth: ((ny: number, nm: number) => void) | null = null;
   export let onClickNCPhase: ((ny: number, nm: number, phase: number) => void) | null = null;
   export let onClickNCSeason: ((ny: number, season: number) => void) | null = null;
+  export let onClickNCYear: ((ny: number) => void) | null = null;
   export let onClickGCMonth: ((date: Moment) => void) | null = null;
   export let onClickGCQuarter: ((date: Moment) => void) | null = null;
   export let onClickGCYear: ((date: Moment) => void) | null = null;
@@ -330,7 +331,7 @@
       <span class="nc-sep">&middot;</span>
       <span class="gc-title-year" on:click={() => onClickGCYear?.(displayedMonth)} title="Open yearly note">{gcInfo.year}</span>
     {:else if ncInfo}
-      <span class="nc-year-text" on:click={() => onClickNCMonth?.(ncInfo.ny, 1)} title="Open NC Year note">
+      <span class="nc-year-text" on:click={() => onClickNCYear?.(ncInfo.ny)} title="Open NC Year note">
         {ncInfo.ny === 1 ? "元年" : `${numToChinese(ncInfo.ny)}年`}
       </span>
       <span class="nc-sep">&middot;</span>

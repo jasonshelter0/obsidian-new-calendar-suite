@@ -3,6 +3,7 @@ import type { TFile } from "obsidian";
 
 import type { ISettings } from "src/settings";
 import { createConfirmationDialog } from "src/ui/modal";
+import { NC } from "../utils/nc-engine";
 import {
   getDailyNoteSettings,
   getNotePath,
@@ -41,7 +42,11 @@ export async function tryToCreateDailyNote(
   const createFile = async () => {
     try {
       const [templateContents, IFoldInfo] = await getTemplateInfo(template);
-      const contents = replaceTemplateTokens(templateContents, date, { format });
+      const contents = replaceTemplateTokens(templateContents, date, {
+        format,
+        nc: true,
+        ncInfo: NC.getNCDate(date),
+      });
       const createdFile = await vault.create(normalizedPath, contents);
       if (IFoldInfo) {
         (window.app as any).foldManager.save(createdFile, IFoldInfo);

@@ -6,6 +6,7 @@ import { TRIGGER_ON_OPEN, VIEW_TYPE_NC_CALENDAR } from "src/constants";
 import { tryToCreateDailyNote } from "src/io/dailyNotes";
 import { tryToCreateWeeklyNote } from "src/io/weeklyNotes";
 import { NC } from "./utils/nc-engine";
+import { getNCYearStart } from "./utils/nc-dates";
 import { createNCNote } from "./io/ncNotes";
 import {
   getDailyNoteSettings,
@@ -116,6 +117,7 @@ export default class NCView extends ItemView {
         onClickNCMonth: this.openOrCreateNCMonthNote.bind(this),
         onClickNCPhase: this.openOrCreateNCPhaseNote.bind(this),
         onClickNCSeason: this.openOrCreateNCSeasonNote.bind(this),
+        onClickNCYear: this.openOrCreateNCYearNote.bind(this),
         sources,
         showWeekNums: get(settings).showWeeklyNote,
       },
@@ -353,6 +355,21 @@ export default class NCView extends ItemView {
         activeFile.setFile(dailyNote);
       }
     );
+  }
+
+  async openOrCreateNCYearNote(ny: number): Promise<void> {
+    try {
+      const yearStart = getNCYearStart(ny);
+      const note = await createNCNote(yearStart, "nc-year");
+      if (note) {
+        const leaf = this.app.workspace.getUnpinnedLeaf();
+        await leaf.openFile(note, { active: true });
+        activeFile.setFile(note);
+      }
+    } catch (e) {
+      console.error("[New Calendar Suite] Error opening NC year note:", e);
+      new Notice(`Error: ${e.message || e}`);
+    }
   }
 
   async openOrCreateNCSeasonNote(ny: number, season: number): Promise<void> {

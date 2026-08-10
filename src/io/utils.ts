@@ -195,8 +195,12 @@ export function replaceTemplateTokens(
   const { moment } = window;
   const { format } = opts;
 
+  // Use GC format (YYYY-MM-DD) for {{date}} in NC context;
+  // NC templates use {{nc-date}} for the NC date.
+  const displayFormat = opts.nc ? "YYYY-MM-DD" : format;
+
   let result = contents
-    .replace(/{{\s*date\s*}}/gi, date.format(format))
+    .replace(/{{\s*date\s*}}/gi, date.format(displayFormat))
     .replace(/{{\s*time\s*}}/gi, moment().format("HH:mm"))
     .replace(/{{\s*title\s*}}/gi, date.format(format))
     .replace(
@@ -214,7 +218,7 @@ export function replaceTemplateTokens(
         if (momentFormat) {
           return currentDate.format(momentFormat.substring(1).trim());
         }
-        return currentDate.format(format);
+        return currentDate.format(displayFormat);
       },
     );
 
