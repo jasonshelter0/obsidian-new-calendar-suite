@@ -1,6 +1,7 @@
 ---
 nc-type: year
 nc-date: "{{nc-date}}"
+nc-year: {{nc-year}}
 gc-date: "{{date}}"
 ---
 

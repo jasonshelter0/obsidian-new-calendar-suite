@@ -1167,6 +1167,7 @@ function getDayOfWeekNumericalValue(dayOfWeekName) {
     return getDaysOfWeek().indexOf(dayOfWeekName.toLowerCase());
 }
 function replaceTemplateTokens(contents, date, opts) {
+    var _a, _b, _c;
     const { moment } = window;
     const { format } = opts;
     let result = contents
@@ -1188,10 +1189,23 @@ function replaceTemplateTokens(contents, date, opts) {
         }
         return currentDate.format(format);
     });
-    // NC date token
+    // GC calendar tokens
+    result = result
+        .replace(/{{\s*gc-year\s*}}/gi, date.format("YYYY"))
+        .replace(/{{\s*gc-month\s*}}/gi, date.format("MM"))
+        .replace(/{{\s*gc-week\s*}}/gi, date.format("ww"))
+        .replace(/{{\s*gc-quarter\s*}}/gi, String(Math.floor(date.month() / 3) + 1));
+    // NC date tokens
     if (opts.nc && opts.ncInfo) {
         const ncDateStr = `${opts.ncInfo.pNy}-${opts.ncInfo.pNm}-${opts.ncInfo.pNd}`;
-        result = result.replace(/{{\s*nc-date\s*}}/gi, ncDateStr);
+        result = result
+            .replace(/{{\s*nc-date\s*}}/gi, ncDateStr)
+            .replace(/{{\s*nc-year\s*}}/gi, opts.ncInfo.pNy)
+            .replace(/{{\s*nc-month\s*}}/gi, opts.ncInfo.pNm)
+            .replace(/{{\s*nc-day\s*}}/gi, opts.ncInfo.pNd)
+            .replace(/{{\s*nc-phase\s*}}/gi, String(opts.ncInfo.phase))
+            .replace(/{{\s*nc-season\s*}}/gi, String(opts.ncInfo.season))
+            .replace(/{{\s*nc-week\s*}}/gi, String((_c = (_b = (_a = window.NCEngine) === null || _a === void 0 ? void 0 : _a.getNCWeekOfMonth) === null || _b === void 0 ? void 0 : _b.call(_a, date, opts.ncInfo.ny, opts.ncInfo.nm)) !== null && _c !== void 0 ? _c : ""));
     }
     // Daily note specific
     result = result

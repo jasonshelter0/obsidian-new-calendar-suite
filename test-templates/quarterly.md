@@ -1,6 +1,8 @@
 ---
 gc-type: quarterly
 gc-date: "{{date}}"
+gc-year: {{gc-year}}
+gc-quarter: {{gc-quarter}}
 ---
 
 # {{date}}

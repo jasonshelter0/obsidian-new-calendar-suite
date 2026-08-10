@@ -1,6 +1,8 @@
 ---
 gc-type: weekly
 gc-date: "{{date}}"
+gc-year: {{gc-year}}
+gc-week: {{gc-week}}
 ---
 
 # Week {{date}}

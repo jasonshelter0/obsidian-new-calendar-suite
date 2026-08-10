@@ -1,6 +1,7 @@
 ---
 gc-type: yearly
 gc-date: "{{date}}"
+gc-year: {{gc-year}}
 ---
 
 # {{date}}

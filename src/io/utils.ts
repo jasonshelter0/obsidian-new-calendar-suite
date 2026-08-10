@@ -218,10 +218,26 @@ export function replaceTemplateTokens(
       },
     );
 
-  // NC date token
+  // GC calendar tokens
+  result = result
+    .replace(/{{\s*gc-year\s*}}/gi, date.format("YYYY"))
+    .replace(/{{\s*gc-month\s*}}/gi, date.format("MM"))
+    .replace(/{{\s*gc-week\s*}}/gi, date.format("ww"))
+    .replace(/{{\s*gc-quarter\s*}}/gi, String(Math.floor(date.month() / 3) + 1));
+
+  // NC date tokens
   if (opts.nc && opts.ncInfo) {
     const ncDateStr = `${opts.ncInfo.pNy}-${opts.ncInfo.pNm}-${opts.ncInfo.pNd}`;
-    result = result.replace(/{{\s*nc-date\s*}}/gi, ncDateStr);
+    result = result
+      .replace(/{{\s*nc-date\s*}}/gi, ncDateStr)
+      .replace(/{{\s*nc-year\s*}}/gi, opts.ncInfo.pNy)
+      .replace(/{{\s*nc-month\s*}}/gi, opts.ncInfo.pNm)
+      .replace(/{{\s*nc-day\s*}}/gi, opts.ncInfo.pNd)
+      .replace(/{{\s*nc-phase\s*}}/gi, String(opts.ncInfo.phase))
+      .replace(/{{\s*nc-season\s*}}/gi, String(opts.ncInfo.season))
+      .replace(/{{\s*nc-week\s*}}/gi, String(
+        window.NCEngine?.getNCWeekOfMonth?.(date, opts.ncInfo.ny, opts.ncInfo.nm) ?? ""
+      ));
   }
 
   // Daily note specific
