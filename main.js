@@ -7305,6 +7305,7 @@ class CalendarPlugin extends obsidian.Plugin {
         this.configureCommands();
         this.configureRibbonIcons();
         this.initLeaf(VIEW_TYPE_CALENDAR);
+        this.initLeaf(VIEW_TYPE_NC_CALENDAR);
     }
     // ── Commands ─────────────────────────────────────────────────
     isEnabled(key) {
@@ -7332,7 +7333,6 @@ class CalendarPlugin extends obsidian.Plugin {
                 continue;
             }
             const openFn = async (date, split) => {
-                var _a, _b;
                 let note;
                 if (["monthly", "quarterly", "yearly"].includes(p)) {
                     const creators = { monthly: createMonthlyNote, quarterly: createQuarterlyNote, yearly: createYearlyNote };
@@ -7342,12 +7342,10 @@ class CalendarPlugin extends obsidian.Plugin {
                     note = await createNCNote(date, p);
                 }
                 else if (p === "daily") {
-                    (_a = this.view) === null || _a === void 0 ? void 0 : _a.openOrCreateDailyNote(date, split);
-                    return;
+                    note = await createDailyNoteFile(date);
                 }
                 else if (p === "weekly") {
-                    (_b = this.view) === null || _b === void 0 ? void 0 : _b.openOrCreateWeeklyNote(date, split);
-                    return;
+                    note = await createWeeklyNoteFile(date);
                 }
                 if (note) {
                     const leaf = split ? app.workspace.splitActiveLeaf() : app.workspace.getUnpinnedLeaf();

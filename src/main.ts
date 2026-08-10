@@ -28,6 +28,8 @@ import {
 } from "./io/utils";
 import { createMonthlyNote, createQuarterlyNote, createYearlyNote } from "./io/gcNotes";
 import { createNCNote } from "./io/ncNotes";
+import { createDailyNoteFile } from "./io/dailyNotes";
+import { createWeeklyNoteFile } from "./io/weeklyNotes";
 import { detectNoteType } from "./breadcrumbs/hierarchy";
 import { insertBreadcrumbsRelationships } from "./breadcrumbs/command";
 import { getFrontmatterFromCache } from "./io/utils";
@@ -185,6 +187,7 @@ export default class CalendarPlugin extends Plugin {
     this.configureCommands();
     this.configureRibbonIcons();
     this.initLeaf(VIEW_TYPE_CALENDAR);
+    this.initLeaf(VIEW_TYPE_NC_CALENDAR);
   }
 
   // ── Commands ─────────────────────────────────────────────────
@@ -223,11 +226,9 @@ export default class CalendarPlugin extends Plugin {
         } else if (p.startsWith("nc-")) {
           note = await createNCNote(date, p as any);
         } else if (p === "daily") {
-          this.view?.openOrCreateDailyNote(date, split);
-          return;
+          note = await createDailyNoteFile(date);
         } else if (p === "weekly") {
-          this.view?.openOrCreateWeeklyNote(date, split);
-          return;
+          note = await createWeeklyNoteFile(date);
         }
         if (note) {
           const leaf = split ? app.workspace.splitActiveLeaf() : app.workspace.getUnpinnedLeaf();
