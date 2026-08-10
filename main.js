@@ -2983,7 +2983,7 @@ async function tryToCreateDailyNote(date, inNewSplit, settings, cb) {
     const normalizedPath = await getNotePath(folder, filename);
     // ── Check filesystem first — file may exist even if store isn't indexed ──
     const existingFile = vault.getAbstractFileByPath(normalizedPath);
-    if (existingFile && existingFile instanceof TFile) {
+    if (existingFile && existingFile instanceof obsidian.TFile) {
         const leaf = inNewSplit
             ? workspace.splitActiveLeaf()
             : workspace.getUnpinnedLeaf();
@@ -3014,7 +3014,7 @@ async function tryToCreateDailyNote(date, inNewSplit, settings, cb) {
             console.error(`Failed to create daily note: '${normalizedPath}'`, err);
             // Last-resort fallback: re-check filesystem in case of race
             const file = vault.getAbstractFileByPath(normalizedPath);
-            if (file instanceof TFile) {
+            if (file instanceof obsidian.TFile) {
                 const leaf = inNewSplit
                     ? workspace.splitActiveLeaf()
                     : workspace.getUnpinnedLeaf();
@@ -3045,7 +3045,7 @@ async function createDailyNoteFile(date) {
     const filename = date.format(format);
     const normalizedPath = await getNotePath(folder, filename);
     const existing = vault.getAbstractFileByPath(normalizedPath);
-    if (existing instanceof TFile)
+    if (existing instanceof obsidian.TFile)
         return existing;
     try {
         const [templateContents, IFoldInfo] = await getTemplateInfo(template);
@@ -3077,7 +3077,7 @@ async function tryToCreateWeeklyNote(date, inNewSplit, settings, cb) {
     const normalizedPath = await getNotePath(folder, filename);
     // ── Check filesystem first — file may exist even if store isn't indexed ──
     const existingFile = vault.getAbstractFileByPath(normalizedPath);
-    if (existingFile && existingFile instanceof TFile) {
+    if (existingFile && existingFile instanceof obsidian.TFile) {
         const leaf = inNewSplit
             ? workspace.splitActiveLeaf()
             : workspace.getUnpinnedLeaf();
@@ -3108,7 +3108,7 @@ async function tryToCreateWeeklyNote(date, inNewSplit, settings, cb) {
             console.error(`Failed to create weekly note: '${normalizedPath}'`, err);
             // Last-resort fallback: re-check filesystem in case of race
             const file = vault.getAbstractFileByPath(normalizedPath);
-            if (file instanceof TFile) {
+            if (file instanceof obsidian.TFile) {
                 const leaf = inNewSplit
                     ? workspace.splitActiveLeaf()
                     : workspace.getUnpinnedLeaf();
@@ -3139,7 +3139,7 @@ async function createWeeklyNoteFile(date) {
     const filename = date.format(format);
     const normalizedPath = await getNotePath(folder, filename);
     const existing = vault.getAbstractFileByPath(normalizedPath);
-    if (existing instanceof TFile)
+    if (existing instanceof obsidian.TFile)
         return existing;
     try {
         const [templateContents, IFoldInfo] = await getTemplateInfo(template);
