@@ -105,6 +105,9 @@ const DEFAULT_NC_PHASE_FORMAT = "NC-YY-MM-[P]P";
 const DEFAULT_NC_MONTH_FORMAT = "NC-YY-MM";
 const DEFAULT_NC_SEASON_FORMAT = "NC-YY-[S]S";
 const DEFAULT_NC_YEAR_FORMAT = "NC-YY";
+// Breadcrumbs defaults
+const DEFAULT_DATAVIEW_TEMPLATE = "{field}:: {value}";
+const DEFAULT_DATAVIEW_MARKER = "<!-- bc:insert -->";
 
 const DEFAULT_DAILY_NOTE_FORMAT = "YYYY-MM-DD";
 const DEFAULT_WEEKLY_NOTE_FORMAT = "gggg-[W]ww";
@@ -742,6 +745,20 @@ const defaultSettings = {
     ncMonth: periodicDefaults({ enabled: true }),
     ncSeason: periodicDefaults(),
     ncYear: periodicDefaults(),
+    breadcrumbs: {
+        enabled: false,
+        fieldUp: "up",
+        fieldDown: "down",
+        fieldPrev: "prev",
+        fieldNext: "next",
+        linkStyle: "wikilink",
+        outputMode: "yaml",
+        dataviewTemplate: DEFAULT_DATAVIEW_TEMPLATE,
+        dataviewPosition: "after-yaml",
+        dataviewMarker: DEFAULT_DATAVIEW_MARKER,
+        dualUpWeekly: true,
+        autoInverse: false,
+    },
     hasMigratedLegacySettings: false,
 };
 // ── Autocomplete helpers for settings inputs ──────────────────────
@@ -820,6 +837,8 @@ class CalendarSettingsTab extends obsidian.PluginSettingTab {
         this.addLocaleOverrideSetting();
         this.containerEl.createEl("h3", { text: "Holiday System" });
         this.addHolidayRegionSetting();
+        this.containerEl.createEl("h3", { text: "Breadcrumbs Integration" });
+        this.addBreadcrumbsSection();
     }
     addPeriodicSection(key, label, defaultFormat) {
         var _a;
@@ -1094,6 +1113,171 @@ class CalendarSettingsTab extends obsidian.PluginSettingTab {
             dropdown.onChange(async (value) => {
                 this.plugin.writeOptions(() => ({
                     localeOverride: value,
+                }));
+            });
+        });
+    }
+    // ── Breadcrumbs section ─────────────────────────────────────────
+    addBreadcrumbsSection() {
+        var _a;
+        const bc = this.plugin.options.breadcrumbs;
+        const enabled = (_a = bc === null || bc === void 0 ? void 0 : bc.enabled) !== null && _a !== void 0 ? _a : false;
+        const sectionBody = this.containerEl.createDiv({ cls: "periodic-section-body" });
+        if (!enabled)
+            sectionBody.style.display = "none";
+        new obsidian.Setting(this.containerEl)
+            .setName("Enable Breadcrumbs integration")
+            .setDesc("Add commands to insert Breadcrumbs hierarchy fields (up/down/prev/next) into calendar notes")
+            .addToggle((toggle) => {
+            toggle.setValue(enabled);
+            toggle.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { enabled: value }),
+                }));
+                sectionBody.style.display = value ? "" : "none";
+            });
+        });
+        // ── Field names ──
+        new obsidian.Setting(sectionBody)
+            .setName("Field name: up (parent)")
+            .setDesc("YAML key or Dataview field name for parent/ancestor relationships")
+            .addText((textfield) => {
+            textfield.setPlaceholder("up");
+            textfield.setValue((bc === null || bc === void 0 ? void 0 : bc.fieldUp) || "up");
+            textfield.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { fieldUp: value || "up" }),
+                }));
+            });
+        });
+        new obsidian.Setting(sectionBody)
+            .setName("Field name: down (children)")
+            .setDesc("YAML key or Dataview field name for child/descendant relationships")
+            .addText((textfield) => {
+            textfield.setPlaceholder("down");
+            textfield.setValue((bc === null || bc === void 0 ? void 0 : bc.fieldDown) || "down");
+            textfield.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { fieldDown: value || "down" }),
+                }));
+            });
+        });
+        new obsidian.Setting(sectionBody)
+            .setName("Field name: prev (previous)")
+            .setDesc("YAML key or Dataview field name for previous-sibling relationships")
+            .addText((textfield) => {
+            textfield.setPlaceholder("prev");
+            textfield.setValue((bc === null || bc === void 0 ? void 0 : bc.fieldPrev) || "prev");
+            textfield.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { fieldPrev: value || "prev" }),
+                }));
+            });
+        });
+        new obsidian.Setting(sectionBody)
+            .setName("Field name: next")
+            .setDesc("YAML key or Dataview field name for next-sibling relationships")
+            .addText((textfield) => {
+            textfield.setPlaceholder("next");
+            textfield.setValue((bc === null || bc === void 0 ? void 0 : bc.fieldNext) || "next");
+            textfield.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { fieldNext: value || "next" }),
+                }));
+            });
+        });
+        // ── Link style ──
+        new obsidian.Setting(sectionBody)
+            .setName("Link style")
+            .setDesc("Wiki-style [[links]] or Markdown [links](path)")
+            .addDropdown((dropdown) => {
+            dropdown.addOption("wikilink", "[[wikilink]]");
+            dropdown.addOption("markdown", "[markdown](path)");
+            dropdown.setValue((bc === null || bc === void 0 ? void 0 : bc.linkStyle) || "wikilink");
+            dropdown.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { linkStyle: value }),
+                }));
+            });
+        });
+        // ── Output mode ──
+        new obsidian.Setting(sectionBody)
+            .setName("Output mode")
+            .setDesc("YAML frontmatter (between ---) or Dataview inline fields (:: syntax)")
+            .addDropdown((dropdown) => {
+            dropdown.addOption("yaml", "YAML frontmatter");
+            dropdown.addOption("dataview", "Dataview inline (::)");
+            dropdown.setValue((bc === null || bc === void 0 ? void 0 : bc.outputMode) || "yaml");
+            dropdown.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { outputMode: value }),
+                }));
+            });
+        });
+        // ── Dataview template (textarea) ──
+        new obsidian.Setting(sectionBody)
+            .setName("Dataview template")
+            .setDesc("Template for inline Dataview fields. {field} = direction name, {value} = rendered link(s)")
+            .addTextArea((textarea) => {
+            textarea.setPlaceholder("{field}:: {value}");
+            textarea.setValue((bc === null || bc === void 0 ? void 0 : bc.dataviewTemplate) || "{field}:: {value}");
+            textarea.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { dataviewTemplate: value || "{field}:: {value}" }),
+                }));
+            });
+        });
+        // ── Dataview position ──
+        new obsidian.Setting(sectionBody)
+            .setName("Dataview insert position")
+            .setDesc("Where to insert inline fields in the note body")
+            .addDropdown((dropdown) => {
+            dropdown.addOption("after-yaml", "After YAML frontmatter");
+            dropdown.addOption("end", "End of file");
+            dropdown.addOption("marker", "After marker comment");
+            dropdown.setValue((bc === null || bc === void 0 ? void 0 : bc.dataviewPosition) || "after-yaml");
+            dropdown.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { dataviewPosition: value }),
+                }));
+            });
+        });
+        // ── Dataview marker ──
+        new obsidian.Setting(sectionBody)
+            .setName("Dataview marker")
+            .setDesc("Marker comment used when position is 'After marker comment'")
+            .addText((textfield) => {
+            textfield.setPlaceholder("<!-- bc:insert -->");
+            textfield.setValue((bc === null || bc === void 0 ? void 0 : bc.dataviewMarker) || "<!-- bc:insert -->");
+            textfield.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { dataviewMarker: value || "<!-- bc:insert -->" }),
+                }));
+            });
+        });
+        // ── Dual up for weekly/daily ──
+        new obsidian.Setting(sectionBody)
+            .setName("Dual parents for weekly/daily")
+            .setDesc("When enabled, weekly and daily 'up' inserts both GC and NC parents")
+            .addToggle((toggle) => {
+            var _a;
+            toggle.setValue((_a = bc === null || bc === void 0 ? void 0 : bc.dualUpWeekly) !== null && _a !== void 0 ? _a : true);
+            toggle.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { dualUpWeekly: value }),
+                }));
+            });
+        });
+        // ── Auto-inverse ──
+        new obsidian.Setting(sectionBody)
+            .setName("Auto-insert inverse relationships")
+            .setDesc("Also write reverse fields into target notes (e.g., 'down' in the parent when inserting 'up' here)")
+            .addToggle((toggle) => {
+            var _a;
+            toggle.setValue((_a = bc === null || bc === void 0 ? void 0 : bc.autoInverse) !== null && _a !== void 0 ? _a : false);
+            toggle.onChange(async (value) => {
+                await this.plugin.writeOptions((s) => ({
+                    breadcrumbs: Object.assign(Object.assign({}, s.breadcrumbs), { autoInverse: value }),
                 }));
             });
         });
@@ -1414,6 +1598,26 @@ function getNCYearSettings() {
         format: ((_a = suiteSettings === null || suiteSettings === void 0 ? void 0 : suiteSettings.ncYear) === null || _a === void 0 ? void 0 : _a.format) || DEFAULT_NC_YEAR_FORMAT,
         folder: ((_c = (_b = suiteSettings === null || suiteSettings === void 0 ? void 0 : suiteSettings.ncYear) === null || _b === void 0 ? void 0 : _b.folder) === null || _c === void 0 ? void 0 : _c.trim()) || "",
         template: ((_e = (_d = suiteSettings === null || suiteSettings === void 0 ? void 0 : suiteSettings.ncYear) === null || _d === void 0 ? void 0 : _d.template) === null || _e === void 0 ? void 0 : _e.trim()) || "",
+    };
+}
+// ── Breadcrumbs settings reader ───────────────────────────────────
+function getBreadcrumbsSettings() {
+    var _a, _b, _c;
+    const suiteSettings = getSuiteSettings();
+    const bc = suiteSettings === null || suiteSettings === void 0 ? void 0 : suiteSettings.breadcrumbs;
+    return {
+        enabled: (_a = bc === null || bc === void 0 ? void 0 : bc.enabled) !== null && _a !== void 0 ? _a : false,
+        fieldUp: (bc === null || bc === void 0 ? void 0 : bc.fieldUp) || "up",
+        fieldDown: (bc === null || bc === void 0 ? void 0 : bc.fieldDown) || "down",
+        fieldPrev: (bc === null || bc === void 0 ? void 0 : bc.fieldPrev) || "prev",
+        fieldNext: (bc === null || bc === void 0 ? void 0 : bc.fieldNext) || "next",
+        linkStyle: (bc === null || bc === void 0 ? void 0 : bc.linkStyle) || "wikilink",
+        outputMode: (bc === null || bc === void 0 ? void 0 : bc.outputMode) || "yaml",
+        dataviewTemplate: (bc === null || bc === void 0 ? void 0 : bc.dataviewTemplate) || DEFAULT_DATAVIEW_TEMPLATE,
+        dataviewPosition: (bc === null || bc === void 0 ? void 0 : bc.dataviewPosition) || "after-yaml",
+        dataviewMarker: (bc === null || bc === void 0 ? void 0 : bc.dataviewMarker) || DEFAULT_DATAVIEW_MARKER,
+        dualUpWeekly: (_b = bc === null || bc === void 0 ? void 0 : bc.dualUpWeekly) !== null && _b !== void 0 ? _b : true,
+        autoInverse: (_c = bc === null || bc === void 0 ? void 0 : bc.autoInverse) !== null && _c !== void 0 ? _c : false,
     };
 }
 
@@ -2831,6 +3035,35 @@ async function tryToCreateDailyNote(date, inNewSplit, settings, cb) {
         await createFile();
     }
 }
+/**
+ * Headless daily note creator — no confirmation dialog, no leaf opening.
+ * Used by breadcrumbs auto-creation where files must be created silently.
+ */
+async function createDailyNoteFile(date) {
+    const { vault } = window.app;
+    const { format, folder, template } = getDailyNoteSettings();
+    const filename = date.format(format);
+    const normalizedPath = await getNotePath(folder, filename);
+    const existing = vault.getAbstractFileByPath(normalizedPath);
+    if (existing instanceof TFile)
+        return existing;
+    try {
+        const [templateContents, IFoldInfo] = await getTemplateInfo(template);
+        const contents = replaceTemplateTokens(templateContents, date, {
+            format,
+            nc: true,
+            ncInfo: NC.getNCDate(date),
+        });
+        const file = await vault.create(normalizedPath, contents);
+        if (IFoldInfo)
+            window.app.foldManager.save(file, IFoldInfo);
+        return file;
+    }
+    catch (err) {
+        console.error(`[Breadcrumbs] Failed to create daily note: '${normalizedPath}'`, err);
+        return undefined;
+    }
+}
 
 /**
  * Create a Weekly Note for a given date.
@@ -2894,6 +3127,35 @@ async function tryToCreateWeeklyNote(date, inNewSplit, settings, cb) {
     }
     else {
         await createFile();
+    }
+}
+/**
+ * Headless weekly note creator — no confirmation dialog, no leaf opening.
+ * Used by breadcrumbs auto-creation where files must be created silently.
+ */
+async function createWeeklyNoteFile(date) {
+    const { vault } = window.app;
+    const { format, folder, template } = getWeeklyNoteSettings();
+    const filename = date.format(format);
+    const normalizedPath = await getNotePath(folder, filename);
+    const existing = vault.getAbstractFileByPath(normalizedPath);
+    if (existing instanceof TFile)
+        return existing;
+    try {
+        const [templateContents, IFoldInfo] = await getTemplateInfo(template);
+        const contents = replaceTemplateTokens(templateContents, date, {
+            format,
+            nc: true,
+            ncInfo: NC.getNCDate(date),
+        });
+        const file = await vault.create(normalizedPath, contents);
+        if (IFoldInfo)
+            window.app.foldManager.save(file, IFoldInfo);
+        return file;
+    }
+    catch (err) {
+        console.error(`[Breadcrumbs] Failed to create weekly note: '${normalizedPath}'`, err);
+        return undefined;
     }
 }
 
@@ -5381,25 +5643,49 @@ const streakSource = {
     },
 };
 
-function getNoteTags(note) {
+/**
+ * Read frontmatter from a note — cache-first, with filesystem fallback.
+ * The fallback is essential for files synced via WebDAV or external tools:
+ * Obsidian's metadata cache may not be populated yet when the file first
+ * appears, so we parse the YAML frontmatter directly from disk.
+ */
+async function getNoteFrontmatter(note) {
     var _a;
-    if (!note) {
-        return [];
+    if (!note)
+        return null;
+    // 1. Fast path: metadata cache (populated after Obsidian indexes the file)
+    const cached = (_a = window.app.metadataCache.getFileCache(note)) === null || _a === void 0 ? void 0 : _a.frontmatter;
+    if (cached)
+        return cached;
+    // 2. Slow path: read the file and parse YAML frontmatter ourselves.
+    //    Needed when files arrive via external sync before Obsidian indexes them.
+    try {
+        const raw = await window.app.vault.cachedRead(note);
+        if (raw.startsWith("---")) {
+            const endIdx = raw.indexOf("---", 3);
+            if (endIdx !== -1) {
+                const yamlBlock = raw.slice(3, endIdx);
+                return obsidian.parseYaml(yamlBlock) || null;
+            }
+        }
     }
-    const { metadataCache } = window.app;
-    const frontmatter = (_a = metadataCache.getFileCache(note)) === null || _a === void 0 ? void 0 : _a.frontmatter;
-    const tags = [];
-    if (frontmatter) {
-        const frontmatterTags = obsidian.parseFrontMatterTags(frontmatter) || [];
-        tags.push(...frontmatterTags);
+    catch (_b) {
+        // File may be inaccessible — that's fine, just return null
     }
-    // strip the '#' at the beginning
-    return tags.map((tag) => tag.substring(1));
+    return null;
 }
-function getFormattedTagAttributes(note) {
+async function getNoteTags(note) {
+    const frontmatter = await getNoteFrontmatter(note);
+    if (!frontmatter)
+        return [];
+    const tags = obsidian.parseFrontMatterTags(frontmatter) || [];
+    // strip the '#' at the beginning
+    return tags.map((tag) => tag.replace(/^#/, ""));
+}
+async function getFormattedTagAttributes(note) {
     const attrs = {};
-    const tags = getNoteTags(note);
-    const [emojiTags, nonEmojiTags] = partition(tags, (tag) => /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/.test(tag));
+    const tags = await getNoteTags(note);
+    const [emojiTags, nonEmojiTags] = partition(tags, (tag) => /(?:[✀-➿]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[#-9]️?⃣|㊙|㊗|〽|〰|Ⓜ|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|🆎|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|🈚|🈯|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|‼|⁉|[▪-▫]|▶|◀|[◻-◾]|©|®|™|ℹ|🀄|[☀-⛿]|⬅|⬆|⬇|⬛|⬜|⭐|⭕|⌚|⌛|⌨|⏏|[⏩-⏳]|[⏸-⏺]|🃏|⤴|⤵|[←-⇿])/.test(tag));
     if (nonEmojiTags) {
         attrs["data-tags"] = nonEmojiTags.join(" ");
     }
@@ -5412,14 +5698,14 @@ const customTagsSource = {
     getDailyMetadata: async (date) => {
         const file = getDailyNote_1(date, get_store_value(dailyNotes));
         return {
-            dataAttributes: getFormattedTagAttributes(file),
+            dataAttributes: await getFormattedTagAttributes(file),
             dots: [],
         };
     },
     getWeeklyMetadata: async (date) => {
         const file = getWeeklyNote_1(date, get_store_value(weeklyNotes));
         return {
-            dataAttributes: getFormattedTagAttributes(file),
+            dataAttributes: await getFormattedTagAttributes(file),
             dots: [],
         };
     },
@@ -6095,6 +6381,806 @@ class NCView extends obsidian.ItemView {
     }
 }
 
+// ── Type detection ────────────────────────────────────────────────
+/**
+ * Detect the calendar note type from YAML frontmatter fields or filename.
+ * Priority: nc-type/gc-type YAML → filename format matching.
+ */
+function detectNoteType(file, frontmatter) {
+    // 1. YAML: nc-type (values set by injectFrontmatter in ncNotes.ts)
+    const ncType = frontmatter === null || frontmatter === void 0 ? void 0 : frontmatter["nc-type"];
+    if (ncType) {
+        switch (ncType) {
+            case "phase": return "nc-phase";
+            case "month": return "nc-month";
+            case "season": return "nc-season";
+            case "year": return "nc-year";
+        }
+    }
+    // 2. YAML: gc-type
+    const gcType = frontmatter === null || frontmatter === void 0 ? void 0 : frontmatter["gc-type"];
+    if (gcType) {
+        switch (gcType) {
+            case "daily":
+            case "weekly":
+            case "monthly":
+            case "quarterly":
+            case "yearly":
+                return gcType;
+        }
+    }
+    // 3. Filename fallback — GC first (simpler)
+    if (getDateFromFile(file, "day"))
+        return "daily";
+    if (getDateFromFile(file, "week"))
+        return "weekly";
+    if (getDateFromFile(file, "month"))
+        return "monthly";
+    // Quarterly: default format YYYY-[Season] becomes YYYY-[Q1]…Q4;
+    // also try strict [Q]Q parsing
+    if (getDateFromFile(file, "quarter"))
+        return "quarterly";
+    // Try explicit [Qn] format for quarterly
+    try {
+        const m = window.moment(file.basename, "YYYY-[Q]Q", true);
+        if (m.isValid())
+            return "quarterly";
+    }
+    catch ( /* ignore */_a) { /* ignore */ }
+    if (getDateFromFile(file, "year"))
+        return "yearly";
+    // 4. Filename fallback — NC
+    const ncFormats = [
+        { g: "nc-phase", f: getNCPhaseSettings },
+        { g: "nc-month", f: getNCMonthSettings },
+        { g: "nc-season", f: getNCSeasonSettings },
+        { g: "nc-year", f: getNCYearSettings },
+    ];
+    for (const { g, f } of ncFormats) {
+        const { format } = f();
+        if (parseNCFilename(file.basename, format, g))
+            return g;
+    }
+    return null;
+}
+// ── Period anchor ─────────────────────────────────────────────────
+/**
+ * Resolve the GC moment that anchors a calendar note to its period.
+ * For NC types this is the start of the period (phase/month/season/year).
+ */
+function resolveNoteMoment(file, type, frontmatter) {
+    const moment = window.moment;
+    switch (type) {
+        case "daily": {
+            const d = getDateFromFile(file, "day");
+            return d ? d.clone().startOf("day") : null;
+        }
+        case "weekly": {
+            const w = getDateFromFile(file, "week");
+            return w ? w.clone().startOf("week") : null;
+        }
+        case "monthly": {
+            const m = getDateFromFile(file, "month");
+            return m ? m.clone().startOf("month") : null;
+        }
+        case "quarterly": {
+            // Try standard quarter format first
+            const q = getDateFromFile(file, "quarter");
+            if (q)
+                return q.clone().startOf("quarter");
+            // Try [Q]Q format
+            const qm = moment(file.basename, "YYYY-[Q]Q", true);
+            if (qm.isValid()) {
+                const mon = (parseInt(qm.format("Q"), 10) - 1) * 3;
+                return qm.clone().month(mon).startOf("month");
+            }
+            return null;
+        }
+        case "yearly": {
+            const y = getDateFromFile(file, "year");
+            return y ? y.clone().startOf("year") : null;
+        }
+        // NC types — read nc-date from YAML directly; fall back to filename parsing
+        case "nc-phase":
+        case "nc-month":
+        case "nc-season":
+        case "nc-year": {
+            // Primary: parse nc-date from YAML frontmatter (always present in NC notes)
+            const ncDate = frontmatter === null || frontmatter === void 0 ? void 0 : frontmatter["nc-date"];
+            if (ncDate && typeof ncDate === "string") {
+                const parts = ncDate.replace(/"/g, "").split("-");
+                if (parts.length === 3) {
+                    const ny = parseInt(parts[0], 10);
+                    const nm = parseInt(parts[1], 10);
+                    if (!isNaN(ny) && !isNaN(nm)) {
+                        switch (type) {
+                            case "nc-phase": {
+                                const phase = NC.getPhase(ny, nm, parseInt(parts[2], 10) || 1);
+                                return getPhaseStart(ny, nm, phase);
+                            }
+                            case "nc-month":
+                                return NC.getNCMonthStart(ny, nm);
+                            case "nc-season": {
+                                const season = NC.getSeason(ny, nm);
+                                return getSeasonStart(ny, season);
+                            }
+                            case "nc-year":
+                                return getNCYearStart(ny);
+                        }
+                    }
+                }
+            }
+            // Fallback: try filename parsing with frontmatter
+            const ncFormats = {
+                "nc-phase": getNCPhaseSettings,
+                "nc-month": getNCMonthSettings,
+                "nc-season": getNCSeasonSettings,
+                "nc-year": getNCYearSettings,
+            };
+            const { format } = ncFormats[type]();
+            const parsed = parseNCFilename(file.basename, format, type, frontmatter);
+            if (!parsed)
+                return null;
+            switch (type) {
+                case "nc-phase": return getPhaseStart(parsed.ny, parsed.nm, parsed.phase);
+                case "nc-month": return NC.getNCMonthStart(parsed.ny, parsed.nm);
+                case "nc-season": return getSeasonStart(parsed.ny, parsed.season);
+                case "nc-year": return getNCYearStart(parsed.ny);
+                default: return null;
+            }
+        }
+        default:
+            return null;
+    }
+}
+// ── Week helpers ───────────────────────────────────────────────────
+/**
+ * The Thursday of a week determines which month/phase that week belongs to,
+ * independent of locale's week-start configuration.
+ * weekStart is a moment at the start of a week (Monday or Sunday depending on locale).
+ * Thursday = weekStart + 3 days.
+ */
+function thursdayOfWeek(weekStart) {
+    return weekStart.clone().add(3, "days");
+}
+/**
+ * Generate all week-start moments whose Thursday falls within [rangeStart, rangeEnd].
+ */
+function weeksInRange(rangeStart, rangeEnd) {
+    const weeks = [];
+    let cursor = rangeStart.clone().startOf("week");
+    const end = rangeEnd.clone();
+    while (true) {
+        const thu = thursdayOfWeek(cursor);
+        if (thu.isAfter(end, "day"))
+            break;
+        if (thu.isSameOrAfter(rangeStart, "day")) {
+            weeks.push(cursor.clone());
+        }
+        cursor.add(1, "week");
+    }
+    return weeks;
+}
+// ── Moment-based target builders ───────────────────────────────────
+function makeTarget(type, moment) {
+    return { type, moment: moment.clone(), file: null };
+}
+/**
+ * Compute the parent(s) for a calendar note.
+ * Weekly and daily have dual parents when dualUp is true.
+ */
+function computeUp(type, moment, dualUp) {
+    const targets = [];
+    switch (type) {
+        case "daily": {
+            // GC: weekly
+            targets.push(makeTarget("weekly", moment.clone().startOf("week")));
+            if (dualUp) {
+                // NC: the nc-phase containing this day
+                const ncInfo = NC.getNCDate(moment);
+                const [phaseStart] = NC.getPhaseRange(ncInfo.ny, ncInfo.nm, ncInfo.phase);
+                targets.push(makeTarget("nc-phase", phaseStart));
+            }
+            break;
+        }
+        case "weekly": {
+            // GC: the monthly containing Thursday of this week
+            const thu = thursdayOfWeek(moment);
+            targets.push(makeTarget("monthly", thu.clone().startOf("month")));
+            if (dualUp) {
+                // NC: the nc-phase containing Thursday of this week
+                const ncInfo = NC.getNCDate(thu);
+                const [phaseStart] = NC.getPhaseRange(ncInfo.ny, ncInfo.nm, ncInfo.phase);
+                targets.push(makeTarget("nc-phase", phaseStart));
+            }
+            break;
+        }
+        case "monthly":
+            targets.push(makeTarget("quarterly", moment.clone().startOf("quarter")));
+            break;
+        case "quarterly":
+            targets.push(makeTarget("yearly", moment.clone().startOf("year")));
+            break;
+        case "yearly":
+            // Top of GC chain — no parent
+            break;
+        case "nc-phase": {
+            const ncInfo = NC.getNCDate(moment);
+            const monthStart = NC.getNCMonthStart(ncInfo.ny, ncInfo.nm);
+            targets.push(makeTarget("nc-month", monthStart));
+            break;
+        }
+        case "nc-month": {
+            const ncInfo = NC.getNCDate(moment);
+            const seasonStart = getSeasonStart(ncInfo.ny, ncInfo.season);
+            targets.push(makeTarget("nc-season", seasonStart));
+            break;
+        }
+        case "nc-season": {
+            const ncInfo = NC.getNCDate(moment);
+            const yearStart = getNCYearStart(ncInfo.ny);
+            targets.push(makeTarget("nc-year", yearStart));
+            break;
+        }
+    }
+    return targets;
+}
+/**
+ * Compute all children for a calendar note.
+ * Creates targets for every sub-period.
+ */
+function computeDown(type, moment) {
+    const targets = [];
+    switch (type) {
+        case "yearly": {
+            // 4 quarters: Q1 (Jan), Q2 (Apr), Q3 (Jul), Q4 (Oct)
+            for (let q = 0; q < 4; q++) {
+                targets.push(makeTarget("quarterly", moment.clone().month(q * 3).startOf("month")));
+            }
+            break;
+        }
+        case "quarterly": {
+            // 3 months
+            for (let m = 0; m < 3; m++) {
+                targets.push(makeTarget("monthly", moment.clone().add(m, "months")));
+            }
+            break;
+        }
+        case "monthly": {
+            // All weeks whose Thursday is in the month
+            const monthEnd = moment.clone().endOf("month");
+            const weeks = weeksInRange(moment, monthEnd);
+            weeks.forEach((w) => targets.push(makeTarget("weekly", w)));
+            break;
+        }
+        case "weekly": {
+            // 7 days
+            for (let d = 0; d < 7; d++) {
+                targets.push(makeTarget("daily", moment.clone().add(d, "days")));
+            }
+            break;
+        }
+        case "daily":
+            // Bottom of chain
+            break;
+        case "nc-year": {
+            // All 4 seasons
+            const ncInfo = NC.getNCDate(moment);
+            for (let s = 1; s <= 4; s++) {
+                targets.push(makeTarget("nc-season", getSeasonStart(ncInfo.ny, s)));
+            }
+            break;
+        }
+        case "nc-season": {
+            const ncInfo = NC.getNCDate(moment);
+            const season = NC.getSeason(ncInfo.ny, ncInfo.nm);
+            const [startNm, endNm] = NC.getSeasonMonths(ncInfo.ny, season);
+            for (let m = startNm; m <= endNm; m++) {
+                targets.push(makeTarget("nc-month", NC.getNCMonthStart(ncInfo.ny, m)));
+            }
+            break;
+        }
+        case "nc-month": {
+            // All 4 phases
+            const ncInfo = NC.getNCDate(moment);
+            for (let p = 1; p <= 4; p++) {
+                const [phaseStart] = NC.getPhaseRange(ncInfo.ny, ncInfo.nm, p);
+                targets.push(makeTarget("nc-phase", phaseStart));
+            }
+            break;
+        }
+        case "nc-phase": {
+            // All weeks whose Thursday is in the phase range
+            const ncInfo = NC.getNCDate(moment);
+            const [phaseStart, phaseEnd] = NC.getPhaseRange(ncInfo.ny, ncInfo.nm, ncInfo.phase);
+            const weeks = weeksInRange(phaseStart, phaseEnd);
+            weeks.forEach((w) => targets.push(makeTarget("weekly", w)));
+            break;
+        }
+    }
+    return targets;
+}
+/**
+ * Compute the previous sibling (same granularity, earlier in time).
+ */
+function computePrev(type, moment) {
+    switch (type) {
+        case "daily":
+            return makeTarget("daily", moment.clone().subtract(1, "day"));
+        case "weekly":
+            return makeTarget("weekly", moment.clone().subtract(1, "week"));
+        case "monthly":
+            return makeTarget("monthly", moment.clone().subtract(1, "month"));
+        case "quarterly":
+            return makeTarget("quarterly", moment.clone().subtract(1, "quarter"));
+        case "yearly":
+            return makeTarget("yearly", moment.clone().subtract(1, "year"));
+        case "nc-phase":
+        case "nc-month":
+        case "nc-season":
+        case "nc-year": {
+            const ncInfo = NC.getNCDate(moment);
+            const prev = NC.prevPeriod(ncInfo, type);
+            // Boundary guard: if prev is same as current, we're at the start
+            if (NC.compare(prev, ncInfo) === 0)
+                return null;
+            // Map back to a period-start moment
+            const startMoment = ncPeriodToMoment(type, prev);
+            return startMoment ? makeTarget(type, startMoment) : null;
+        }
+    }
+    return null;
+}
+/**
+ * Compute the next sibling (same granularity, later in time).
+ */
+function computeNext(type, moment) {
+    switch (type) {
+        case "daily":
+            return makeTarget("daily", moment.clone().add(1, "day"));
+        case "weekly":
+            return makeTarget("weekly", moment.clone().add(1, "week"));
+        case "monthly":
+            return makeTarget("monthly", moment.clone().add(1, "month"));
+        case "quarterly":
+            return makeTarget("quarterly", moment.clone().add(1, "quarter"));
+        case "yearly":
+            return makeTarget("yearly", moment.clone().add(1, "year"));
+        case "nc-phase":
+        case "nc-month":
+        case "nc-season":
+        case "nc-year": {
+            const ncInfo = NC.getNCDate(moment);
+            const next = NC.nextPeriod(ncInfo, type);
+            if (NC.compare(next, ncInfo) === 0)
+                return null;
+            const startMoment = ncPeriodToMoment(type, next);
+            return startMoment ? makeTarget(type, startMoment) : null;
+        }
+    }
+    return null;
+}
+/**
+ * Convert an NC period result from nextPeriod/prevPeriod back to a GC moment.
+ */
+function ncPeriodToMoment(type, nc) {
+    switch (type) {
+        case "nc-phase": {
+            const [start] = NC.getPhaseRange(nc.ny, nc.nm, nc.phase);
+            return start;
+        }
+        case "nc-month":
+            return NC.getNCMonthStart(nc.ny, nc.nm);
+        case "nc-season":
+            return getSeasonStart(nc.ny, nc.season);
+        case "nc-year":
+            return getNCYearStart(nc.ny);
+        default:
+            return null;
+    }
+}
+// ── Link rendering ────────────────────────────────────────────────
+/**
+ * Render a link from sourceFile to targetFile in the configured style.
+ *
+ * YAML values are always raw [[wikilink]] or [alias](path) — never
+ * Obsidian's pipe-link [[path|alias]] because Breadcrumbs resolves by
+ * basename. The double-quote wrapping and YAML list formatting are
+ * handled by the writer, not the renderer.
+ */
+function toLink(target, _sourceFile, style) {
+    if (style === "markdown") {
+        const alias = target.basename;
+        return `[${alias}](${encodeURI(target.path)})`;
+    }
+    // wikilink: use basename (no .md extension)
+    return `[[${target.basename}]]`;
+}
+
+// ── Field status detection ────────────────────────────────────────
+/**
+ * Read the current value of a Breadcrumbs field from a note's content.
+ * Used for idempotency checks before insertion.
+ */
+function readFieldStatus(content, key, mode) {
+    if (mode === "yaml") {
+        return readYamlField(content, key);
+    }
+    return readDataviewField(content, key);
+}
+function readYamlField(content, key) {
+    var _a;
+    if (!content.startsWith("---"))
+        return { exists: false, value: null };
+    const endIdx = content.indexOf("---", 3);
+    if (endIdx === -1)
+        return { exists: false, value: null };
+    const fm = content.slice(3, endIdx);
+    // Match the key line and any indented list items that follow
+    const keyRegex = new RegExp(`^${escapeRegex(key)}\\s*:\\s*(.*)`, "m");
+    const match = fm.match(keyRegex);
+    if (!match)
+        return { exists: false, value: null };
+    const lineValue = ((_a = match[1]) === null || _a === void 0 ? void 0 : _a.trim()) || "";
+    // If the value on the key line is empty/blank, check for indented list items below
+    if (lineValue === "" || lineValue === "[]") {
+        // Look for list items starting after the key line
+        const keyLineIdx = fm.indexOf(match[0]);
+        const afterKey = fm.slice(keyLineIdx + match[0].length);
+        const listRegex = /^\s*-\s*(.+)$/gm;
+        const items = [];
+        let m;
+        while ((m = listRegex.exec(afterKey)) !== null) {
+            // Stop if we hit a non-indented key (next YAML field)
+            const beforeMatch = afterKey.slice(0, m.index);
+            const lastNewline = beforeMatch.lastIndexOf("\n");
+            const afterLastNewline = beforeMatch.slice(lastNewline + 1);
+            if (/^[a-zA-Z_]/.test(afterLastNewline))
+                break; // new top-level key
+            items.push(m[1].trim());
+        }
+        if (items.length > 0) {
+            return { exists: true, value: items.join(", ") };
+        }
+    }
+    // Check for inline list syntax: key: [a, b]
+    if (lineValue.startsWith("[") && lineValue.endsWith("]")) {
+        return { exists: true, value: lineValue };
+    }
+    return { exists: true, value: lineValue };
+}
+function readDataviewField(content, key) {
+    var _a;
+    const regex = new RegExp(`^\\s*${escapeRegex(key)}\\s*::\\s*(.*)$`, "m");
+    const match = content.match(regex);
+    if (!match)
+        return { exists: false, value: null };
+    return { exists: true, value: ((_a = match[1]) === null || _a === void 0 ? void 0 : _a.trim()) || null };
+}
+// ── Value comparison ──────────────────────────────────────────────
+/**
+ * Normalize a rendered Breadcrumbs value for comparison.
+ * Strips quotes and whitespace so existing vs new values can be compared.
+ */
+function normalizeValue(value) {
+    return value
+        .replace(/^["']|["']$/g, "") // surrounding quotes
+        .replace(/\s*,\s*/g, ",") // normalize comma spacing
+        .trim();
+}
+// ── Field rendering ───────────────────────────────────────────────
+/**
+ * Build the YAML block for a single field.
+ * Single-value: `key: "[[value]]"`
+ * Multi-value:
+ *   key:
+ *     - "[[v1]]"
+ *     - "[[v2]]"
+ */
+function buildYamlBlock(key, values) {
+    if (values.length === 1) {
+        return `${key}: "${values[0]}"`;
+    }
+    const lines = values.map((v) => `  - "${v}"`);
+    return `${key}:\n${lines.join("\n")}`;
+}
+/**
+ * Build a Dataview inline field line.
+ * Multi-value fields are joined with ", " on one line (matching Breadcrumbs docs).
+ */
+function buildDataviewLine(template, key, values) {
+    const joined = values.join(", ");
+    return template
+        .replace(/\{field\}/g, key)
+        .replace(/\{value\}/g, joined);
+}
+/**
+ * Build the new note content with Breadcrumbs fields inserted.
+ * Pure function — does not touch the vault (caller wraps in vault.process).
+ *
+ * @param current  Current file contents
+ * @param items    Fields to insert (all with status "insert")
+ * @param opts     Insertion options
+ * @returns        Transformed contents
+ */
+function buildNewContent(current, items, opts) {
+    if (opts.mode === "yaml") {
+        return insertYamlFields(current, items);
+    }
+    return insertDataviewFields(current, items, opts);
+}
+function insertYamlFields(current, items) {
+    // Build blocks for each field
+    const blocks = items.map((item) => buildYamlBlock(item.key, item.values));
+    if (current.startsWith("---")) {
+        // Has existing frontmatter — inject before closing ---
+        const endIdx = current.indexOf("---", 3);
+        if (endIdx !== -1) {
+            return (current.slice(0, endIdx) +
+                blocks.join("\n") +
+                "\n" +
+                current.slice(endIdx));
+        }
+        // Malformed: starts with --- but no closing ---; treat as no frontmatter
+    }
+    // No frontmatter — prepend one
+    return `---\n${blocks.join("\n")}\n---\n${current}`;
+}
+function insertDataviewFields(current, items, opts) {
+    const lines = items.map((item) => buildDataviewLine(opts.dataviewTemplate, item.key, item.values));
+    const block = lines.join("\n") + "\n";
+    switch (opts.dataviewPosition) {
+        case "after-yaml": {
+            // Insert after YAML frontmatter block, or at top if none
+            if (current.startsWith("---")) {
+                const endIdx = current.indexOf("---", 3);
+                if (endIdx !== -1) {
+                    const afterFm = endIdx + 3;
+                    // Skip any trailing newline after ---
+                    const skipNl = current[afterFm] === "\n" ? 1 : current[afterFm] === "\r" ? 1 : 0;
+                    return (current.slice(0, afterFm + skipNl) +
+                        "\n" +
+                        block +
+                        current.slice(afterFm + skipNl));
+                }
+            }
+            // No frontmatter — prepend at top
+            return block + current;
+        }
+        case "end": {
+            // Append at end of file
+            const trail = current.endsWith("\n") ? "" : "\n";
+            return current + trail + block;
+        }
+        case "marker": {
+            // Insert after marker comment
+            if (current.includes(opts.dataviewMarker)) {
+                const idx = current.indexOf(opts.dataviewMarker) + opts.dataviewMarker.length;
+                const afterMarker = current[idx] === "\n" ? 1 : 0;
+                return (current.slice(0, idx + afterMarker) +
+                    "\n" +
+                    block +
+                    current.slice(idx + afterMarker));
+            }
+            // Marker not found — append marker + block at end
+            const trail = current.endsWith("\n") ? "" : "\n";
+            return current + trail + opts.dataviewMarker + "\n" + block;
+        }
+    }
+    return current;
+}
+// ── Utilities ─────────────────────────────────────────────────────
+function escapeRegex(s) {
+    return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/**
+ * Try to find an existing note: store → filesystem check → create.
+ * Returns the file, or null with a console warning on failure.
+ */
+async function findOrCreate(target, type) {
+    const { vault } = window.app;
+    // 1. Store lookup for daily/weekly notes
+    if (type === "daily") {
+        const uid = getDateUID(target.moment, "day");
+        const existing = get_store_value(dailyNotes)[uid];
+        if (existing)
+            return existing;
+    }
+    else if (type === "weekly") {
+        const uid = getDateUID(target.moment, "week");
+        const existing = get_store_value(weeklyNotes)[uid];
+        if (existing)
+            return existing;
+    }
+    // 2. Filesystem check for daily/weekly (store may be stale)
+    if (type === "daily" || type === "weekly") {
+        const { format, folder } = type === "daily" ? getDailyNoteSettings() : getWeeklyNoteSettings();
+        const filename = target.moment.format(format) + ".md";
+        const path = obsidian.normalizePath(folder ? `${folder}/${filename}` : filename);
+        const diskFile = vault.getAbstractFileByPath(path);
+        if (diskFile)
+            return diskFile;
+    }
+    // 3. Create (all creators check existence internally and short-circuit)
+    try {
+        let file;
+        switch (type) {
+            case "daily":
+                file = await createDailyNoteFile(target.moment);
+                break;
+            case "weekly":
+                file = await createWeeklyNoteFile(target.moment);
+                break;
+            case "monthly":
+                file = await createMonthlyNote(target.moment);
+                break;
+            case "quarterly":
+                file = await createQuarterlyNote(target.moment);
+                break;
+            case "yearly":
+                file = await createYearlyNote(target.moment);
+                break;
+            case "nc-phase":
+                file = await createNCNote(target.moment, "nc-phase");
+                break;
+            case "nc-month":
+                file = await createNCNote(target.moment, "nc-month");
+                break;
+            case "nc-season":
+                file = await createNCNote(target.moment, "nc-season");
+                break;
+            case "nc-year":
+                file = await createNCNote(target.moment, "nc-year");
+                break;
+        }
+        if (!file) {
+            console.warn(`[Breadcrumbs] Could not create ${type} note for ${target.moment.format("YYYY-MM-DD")}`);
+        }
+        return file || null;
+    }
+    catch (err) {
+        console.error(`[Breadcrumbs] Failed to create ${type} note:`, err);
+        new obsidian.Notice(`Breadcrumbs: failed to create ${type} note — ${err.message || err}`);
+        return null;
+    }
+}
+// ── Orchestrator ───────────────────────────────────────────────────
+async function insertBreadcrumbsRelationships(file) {
+    const result = { inserted: 0, created: 0, skipped: 0, conflicts: 0 };
+    // 1. Detect note type
+    const fm = getFrontmatterFromCache(file);
+    const type = detectNoteType(file, fm);
+    if (!type) {
+        new obsidian.Notice("Not a calendar note — cannot insert Breadcrumbs relationships.");
+        return result;
+    }
+    // 2. Resolve period-anchor moment
+    const moment = resolveNoteMoment(file, type, fm);
+    if (!moment) {
+        new obsidian.Notice("Could not determine the date of this calendar note.");
+        return result;
+    }
+    // 3. Read settings
+    const bc = getBreadcrumbsSettings();
+    if (!bc.enabled)
+        return result;
+    // 4. Compute all four directions
+    const upTargets = computeUp(type, moment, bc.dualUpWeekly);
+    const downTargets = computeDown(type, moment);
+    const prevTarget = computePrev(type, moment);
+    const nextTarget = computeNext(type, moment);
+    // 5. Find or create target files, tracking failures
+    const created = [];
+    let failed = 0;
+    const ensureTargets = async (targets) => {
+        const files = [];
+        for (const t of targets) {
+            const f = await findOrCreate(t, t.type);
+            if (f) {
+                t.file = f;
+                if (!created.includes(f))
+                    created.push(f);
+                files.push(f);
+            }
+            else {
+                failed++;
+            }
+        }
+        return files;
+    };
+    const upFiles = await ensureTargets(upTargets);
+    const downFiles = await ensureTargets(downTargets);
+    const prevFiles = prevTarget ? await ensureTargets([prevTarget]) : [];
+    const nextFiles = nextTarget ? await ensureTargets([nextTarget]) : [];
+    result.created = created.length;
+    if (failed > 0) {
+        console.warn(`[Breadcrumbs] ${failed} target(s) could not be found or created`);
+    }
+    // 6. Build insert plan items
+    const items = [];
+    const addItem = (key, files, targets) => {
+        if (files.length === 0)
+            return;
+        const values = files.map((f) => toLink(f, file, bc.linkStyle));
+        items.push({
+            key,
+            values,
+            targets: targets.filter((t) => t.file),
+            status: "insert",
+            existing: null,
+        });
+    };
+    addItem(bc.fieldUp, upFiles, upTargets);
+    addItem(bc.fieldDown, downFiles, downTargets);
+    if (prevFiles.length > 0)
+        addItem(bc.fieldPrev, prevFiles, prevTarget ? [prevTarget] : []);
+    if (nextFiles.length > 0)
+        addItem(bc.fieldNext, nextFiles, nextTarget ? [nextTarget] : []);
+    if (items.length === 0) {
+        new obsidian.Notice("No Breadcrumbs relationships to insert.");
+        return result;
+    }
+    // 7. Read current note content and check for conflicts
+    const { vault } = window.app;
+    const currentContent = await vault.read(file);
+    for (const item of items) {
+        const status = readFieldStatus(currentContent, item.key, bc.outputMode);
+        if (status.exists) {
+            const existingNorm = normalizeValue(status.value || "");
+            const newNorm = normalizeValue(item.values.join(", "));
+            if (existingNorm === newNorm) {
+                item.status = "exists-same";
+                result.skipped++;
+            }
+            else {
+                item.status = "exists-different";
+                result.conflicts++;
+            }
+        }
+    }
+    const toInsert = items.filter((i) => i.status === "insert");
+    const conflicts = items.filter((i) => i.status === "exists-different");
+    if (conflicts.length > 0) {
+        const conflictKeys = conflicts.map((c) => c.key).join(", ");
+        new obsidian.Notice(`Breadcrumbs: skipped ${conflicts.length} conflicting field(s) (${conflictKeys}) — already set`);
+    }
+    if (toInsert.length === 0) {
+        const msg = result.created > 0
+            ? `Breadcrumbs: ${result.created} file(s) created, but all fields already exist`
+            : "Breadcrumbs relationships already up to date.";
+        new obsidian.Notice(msg);
+        return result;
+    }
+    // 8. Insert fields via vault.process
+    try {
+        await vault.process(file, (current) => buildNewContent(current, toInsert, {
+            mode: bc.outputMode,
+            dataviewTemplate: bc.dataviewTemplate,
+            dataviewPosition: bc.dataviewPosition,
+            dataviewMarker: bc.dataviewMarker,
+        }));
+        result.inserted = toInsert.length;
+    }
+    catch (err) {
+        console.error("[Breadcrumbs] Failed to insert fields:", err);
+        new obsidian.Notice(`Breadcrumbs: failed to insert — ${err.message || err}`);
+        return result;
+    }
+    // 9. Summary notice
+    const parts = [];
+    if (result.inserted > 0)
+        parts.push(`${result.inserted} field(s) inserted`);
+    if (result.created > 0)
+        parts.push(`${result.created} file(s) created`);
+    if (result.skipped > 0)
+        parts.push(`${result.skipped} field(s) already set`);
+    if (failed > 0)
+        parts.push(`${failed} target(s) failed`);
+    new obsidian.Notice(`Breadcrumbs: ${parts.join(", ")}`);
+    return result;
+}
+
 /**
  * Public API for DataviewJS, Templater, and other plugins.
  * Access via `window.NCDates`.
@@ -6269,6 +7355,26 @@ class CalendarPlugin extends obsidian.Plugin {
                 }
             };
             this.addCommand({ id: `open-${p}-note`, name: `Open ${p} note`, callback: () => openFn(window.moment(), false) });
+        }
+        // Breadcrumbs integration command
+        const bc = this.options.breadcrumbs;
+        if (bc === null || bc === void 0 ? void 0 : bc.enabled) {
+            this.addCommand({
+                id: "insert-breadcrumbs",
+                name: "Insert Breadcrumbs relationships",
+                checkCallback: (checking) => {
+                    const leaf = this.app.workspace.activeLeaf;
+                    const activeFile = (leaf === null || leaf === void 0 ? void 0 : leaf.view) instanceof obsidian.FileView ? leaf.view.file : null;
+                    const valid = !!activeFile && detectNoteType(activeFile, getFrontmatterFromCache(activeFile)) !== null;
+                    if (!checking && valid && activeFile) {
+                        void insertBreadcrumbsRelationships(activeFile);
+                    }
+                    return valid;
+                },
+            });
+        }
+        else {
+            this.app.commands.removeCommand("new-calendar-suite:insert-breadcrumbs");
         }
     }
     // ── Ribbon ───────────────────────────────────────────────────

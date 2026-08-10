@@ -13,7 +13,8 @@ import {
 import type { ILocaleOverride, IWeekStartOption } from "obsidian-calendar-ui";
 import { get } from "svelte/store";
 
-import { DEFAULT_WEEK_FORMAT, DEFAULT_WORDS_PER_DOT } from "src/constants";
+import { DEFAULT_WEEK_FORMAT, DEFAULT_WORDS_PER_DOT, DEFAULT_DATAVIEW_TEMPLATE, DEFAULT_DATAVIEW_MARKER } from "src/constants";
+import type { IBreadcrumbsSettings } from "./breadcrumbs/types";
 
 import type CalendarPlugin from "./main";
 import { holidayMeta, holidays } from "./ui/stores";
@@ -52,6 +53,9 @@ export interface ISettings {
   ncMonth: IPeriodicNoteSettings;
   ncSeason: IPeriodicNoteSettings;
   ncYear: IPeriodicNoteSettings;
+
+  // Breadcrumbs integration
+  breadcrumbs: IBreadcrumbsSettings;
 
   hasMigratedLegacySettings: boolean;
 }
@@ -95,6 +99,21 @@ export const defaultSettings: ISettings = {
   ncMonth: periodicDefaults({ enabled: true }),
   ncSeason: periodicDefaults(),
   ncYear: periodicDefaults(),
+
+  breadcrumbs: {
+    enabled: false,
+    fieldUp: "up",
+    fieldDown: "down",
+    fieldPrev: "prev",
+    fieldNext: "next",
+    linkStyle: "wikilink",
+    outputMode: "yaml",
+    dataviewTemplate: DEFAULT_DATAVIEW_TEMPLATE,
+    dataviewPosition: "after-yaml",
+    dataviewMarker: DEFAULT_DATAVIEW_MARKER,
+    dualUpWeekly: true,
+    autoInverse: false,
+  },
 
   hasMigratedLegacySettings: false,
 };
@@ -206,6 +225,9 @@ export class CalendarSettingsTab extends PluginSettingTab {
 
     this.containerEl.createEl("h3", { text: "Holiday System" });
     this.addHolidayRegionSetting();
+
+    this.containerEl.createEl("h3", { text: "Breadcrumbs Integration" });
+    this.addBreadcrumbsSection();
   }
 
   addPeriodicSection(key: string, label: string, defaultFormat: string): void {
@@ -502,6 +524,182 @@ export class CalendarSettingsTab extends PluginSettingTab {
         dropdown.onChange(async (value) => {
           this.plugin.writeOptions(() => ({
             localeOverride: value as ILocaleOverride,
+          }));
+        });
+      });
+  }
+
+  // ── Breadcrumbs section ─────────────────────────────────────────
+
+  addBreadcrumbsSection(): void {
+    const bc = this.plugin.options.breadcrumbs;
+    const enabled = bc?.enabled ?? false;
+
+    const sectionBody = this.containerEl.createDiv({ cls: "periodic-section-body" });
+    if (!enabled) sectionBody.style.display = "none";
+
+    new Setting(this.containerEl)
+      .setName("Enable Breadcrumbs integration")
+      .setDesc("Add commands to insert Breadcrumbs hierarchy fields (up/down/prev/next) into calendar notes")
+      .addToggle((toggle) => {
+        toggle.setValue(enabled);
+        toggle.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, enabled: value },
+          }));
+          sectionBody.style.display = value ? "" : "none";
+        });
+      });
+
+    // ── Field names ──
+    new Setting(sectionBody)
+      .setName("Field name: up (parent)")
+      .setDesc("YAML key or Dataview field name for parent/ancestor relationships")
+      .addText((textfield) => {
+        textfield.setPlaceholder("up");
+        textfield.setValue(bc?.fieldUp || "up");
+        textfield.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, fieldUp: value || "up" },
+          }));
+        });
+      });
+
+    new Setting(sectionBody)
+      .setName("Field name: down (children)")
+      .setDesc("YAML key or Dataview field name for child/descendant relationships")
+      .addText((textfield) => {
+        textfield.setPlaceholder("down");
+        textfield.setValue(bc?.fieldDown || "down");
+        textfield.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, fieldDown: value || "down" },
+          }));
+        });
+      });
+
+    new Setting(sectionBody)
+      .setName("Field name: prev (previous)")
+      .setDesc("YAML key or Dataview field name for previous-sibling relationships")
+      .addText((textfield) => {
+        textfield.setPlaceholder("prev");
+        textfield.setValue(bc?.fieldPrev || "prev");
+        textfield.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, fieldPrev: value || "prev" },
+          }));
+        });
+      });
+
+    new Setting(sectionBody)
+      .setName("Field name: next")
+      .setDesc("YAML key or Dataview field name for next-sibling relationships")
+      .addText((textfield) => {
+        textfield.setPlaceholder("next");
+        textfield.setValue(bc?.fieldNext || "next");
+        textfield.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, fieldNext: value || "next" },
+          }));
+        });
+      });
+
+    // ── Link style ──
+    new Setting(sectionBody)
+      .setName("Link style")
+      .setDesc("Wiki-style [[links]] or Markdown [links](path)")
+      .addDropdown((dropdown) => {
+        dropdown.addOption("wikilink", "[[wikilink]]");
+        dropdown.addOption("markdown", "[markdown](path)");
+        dropdown.setValue(bc?.linkStyle || "wikilink");
+        dropdown.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, linkStyle: value as "wikilink" | "markdown" },
+          }));
+        });
+      });
+
+    // ── Output mode ──
+    new Setting(sectionBody)
+      .setName("Output mode")
+      .setDesc("YAML frontmatter (between ---) or Dataview inline fields (:: syntax)")
+      .addDropdown((dropdown) => {
+        dropdown.addOption("yaml", "YAML frontmatter");
+        dropdown.addOption("dataview", "Dataview inline (::)");
+        dropdown.setValue(bc?.outputMode || "yaml");
+        dropdown.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, outputMode: value as "yaml" | "dataview" },
+          }));
+        });
+      });
+
+    // ── Dataview template (textarea) ──
+    new Setting(sectionBody)
+      .setName("Dataview template")
+      .setDesc("Template for inline Dataview fields. {field} = direction name, {value} = rendered link(s)")
+      .addTextArea((textarea) => {
+        textarea.setPlaceholder("{field}:: {value}");
+        textarea.setValue(bc?.dataviewTemplate || "{field}:: {value}");
+        textarea.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, dataviewTemplate: value || "{field}:: {value}" },
+          }));
+        });
+      });
+
+    // ── Dataview position ──
+    new Setting(sectionBody)
+      .setName("Dataview insert position")
+      .setDesc("Where to insert inline fields in the note body")
+      .addDropdown((dropdown) => {
+        dropdown.addOption("after-yaml", "After YAML frontmatter");
+        dropdown.addOption("end", "End of file");
+        dropdown.addOption("marker", "After marker comment");
+        dropdown.setValue(bc?.dataviewPosition || "after-yaml");
+        dropdown.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, dataviewPosition: value as "after-yaml" | "end" | "marker" },
+          }));
+        });
+      });
+
+    // ── Dataview marker ──
+    new Setting(sectionBody)
+      .setName("Dataview marker")
+      .setDesc("Marker comment used when position is 'After marker comment'")
+      .addText((textfield) => {
+        textfield.setPlaceholder("<!-- bc:insert -->");
+        textfield.setValue(bc?.dataviewMarker || "<!-- bc:insert -->");
+        textfield.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, dataviewMarker: value || "<!-- bc:insert -->" },
+          }));
+        });
+      });
+
+    // ── Dual up for weekly/daily ──
+    new Setting(sectionBody)
+      .setName("Dual parents for weekly/daily")
+      .setDesc("When enabled, weekly and daily 'up' inserts both GC and NC parents")
+      .addToggle((toggle) => {
+        toggle.setValue(bc?.dualUpWeekly ?? true);
+        toggle.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, dualUpWeekly: value },
+          }));
+        });
+      });
+
+    // ── Auto-inverse ──
+    new Setting(sectionBody)
+      .setName("Auto-insert inverse relationships")
+      .setDesc("Also write reverse fields into target notes (e.g., 'down' in the parent when inserting 'up' here)")
+      .addToggle((toggle) => {
+        toggle.setValue(bc?.autoInverse ?? false);
+        toggle.onChange(async (value) => {
+          await this.plugin.writeOptions((s) => ({
+            breadcrumbs: { ...s.breadcrumbs, autoInverse: value },
           }));
         });
       });

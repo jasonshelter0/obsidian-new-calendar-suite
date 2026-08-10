@@ -22,3 +22,7 @@ export const DEFAULT_NC_PHASE_FORMAT = "NC-YY-MM-[P]P";
 export const DEFAULT_NC_MONTH_FORMAT = "NC-YY-MM";
 export const DEFAULT_NC_SEASON_FORMAT = "NC-YY-[S]S";
 export const DEFAULT_NC_YEAR_FORMAT = "NC-YY";
+
+// Breadcrumbs defaults
+export const DEFAULT_DATAVIEW_TEMPLATE = "{field}:: {value}";
+export const DEFAULT_DATAVIEW_MARKER = "<!-- bc:insert -->";

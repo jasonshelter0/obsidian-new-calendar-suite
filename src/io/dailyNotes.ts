@@ -81,3 +81,32 @@ export async function tryToCreateDailyNote(
     await createFile();
   }
 }
+
+/**
+ * Headless daily note creator — no confirmation dialog, no leaf opening.
+ * Used by breadcrumbs auto-creation where files must be created silently.
+ */
+export async function createDailyNoteFile(date: Moment): Promise<TFile | undefined> {
+  const { vault } = window.app;
+  const { format, folder, template } = getDailyNoteSettings();
+  const filename = date.format(format);
+  const normalizedPath = await getNotePath(folder, filename);
+
+  const existing = vault.getAbstractFileByPath(normalizedPath);
+  if (existing instanceof TFile) return existing;
+
+  try {
+    const [templateContents, IFoldInfo] = await getTemplateInfo(template);
+    const contents = replaceTemplateTokens(templateContents, date, {
+      format,
+      nc: true,
+      ncInfo: NC.getNCDate(date),
+    });
+    const file = await vault.create(normalizedPath, contents);
+    if (IFoldInfo) (window.app as any).foldManager.save(file, IFoldInfo);
+    return file;
+  } catch (err) {
+    console.error(`[Breadcrumbs] Failed to create daily note: '${normalizedPath}'`, err);
+    return undefined;
+  }
+}

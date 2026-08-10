@@ -81,3 +81,32 @@ export async function tryToCreateWeeklyNote(
     await createFile();
   }
 }
+
+/**
+ * Headless weekly note creator — no confirmation dialog, no leaf opening.
+ * Used by breadcrumbs auto-creation where files must be created silently.
+ */
+export async function createWeeklyNoteFile(date: Moment): Promise<TFile | undefined> {
+  const { vault } = window.app;
+  const { format, folder, template } = getWeeklyNoteSettings();
+  const filename = date.format(format);
+  const normalizedPath = await getNotePath(folder, filename);
+
+  const existing = vault.getAbstractFileByPath(normalizedPath);
+  if (existing instanceof TFile) return existing;
+
+  try {
+    const [templateContents, IFoldInfo] = await getTemplateInfo(template);
+    const contents = replaceTemplateTokens(templateContents, date, {
+      format,
+      nc: true,
+      ncInfo: NC.getNCDate(date),
+    });
+    const file = await vault.create(normalizedPath, contents);
+    if (IFoldInfo) (window.app as any).foldManager.save(file, IFoldInfo);
+    return file;
+  } catch (err) {
+    console.error(`[Breadcrumbs] Failed to create weekly note: '${normalizedPath}'`, err);
+    return undefined;
+  }
+}

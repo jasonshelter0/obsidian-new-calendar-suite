@@ -9,8 +9,11 @@ import {
   DEFAULT_NC_MONTH_FORMAT,
   DEFAULT_NC_SEASON_FORMAT,
   DEFAULT_NC_YEAR_FORMAT,
+  DEFAULT_DATAVIEW_TEMPLATE,
+  DEFAULT_DATAVIEW_MARKER,
 } from "../constants";
 import { ISettings } from "../settings";
+import type { IBreadcrumbsSettings } from "../breadcrumbs/types";
 
 // ── File path utilities ──────────────────────────────────────────
 
@@ -401,4 +404,25 @@ export function appHasWeeklyNotesPluginLoaded(): boolean {
 export function appHasMonthlyNotesPluginLoaded(): boolean {
   const suiteSettings = getSuiteSettings();
   return suiteSettings?.monthly?.enabled === true;
+}
+
+// ── Breadcrumbs settings reader ───────────────────────────────────
+
+export function getBreadcrumbsSettings(): IBreadcrumbsSettings {
+  const suiteSettings = getSuiteSettings();
+  const bc = suiteSettings?.breadcrumbs;
+  return {
+    enabled: bc?.enabled ?? false,
+    fieldUp: bc?.fieldUp || "up",
+    fieldDown: bc?.fieldDown || "down",
+    fieldPrev: bc?.fieldPrev || "prev",
+    fieldNext: bc?.fieldNext || "next",
+    linkStyle: bc?.linkStyle || "wikilink",
+    outputMode: bc?.outputMode || "yaml",
+    dataviewTemplate: bc?.dataviewTemplate || DEFAULT_DATAVIEW_TEMPLATE,
+    dataviewPosition: bc?.dataviewPosition || "after-yaml",
+    dataviewMarker: bc?.dataviewMarker || DEFAULT_DATAVIEW_MARKER,
+    dualUpWeekly: bc?.dualUpWeekly ?? true,
+    autoInverse: bc?.autoInverse ?? false,
+  };
 }

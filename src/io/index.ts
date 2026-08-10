@@ -18,6 +18,7 @@ export {
   getNCMonthSettings,
   getNCSeasonSettings,
   getNCYearSettings,
+  getBreadcrumbsSettings,
   appHasDailyNotesPluginLoaded,
   appHasWeeklyNotesPluginLoaded,
   appHasMonthlyNotesPluginLoaded,
@@ -43,8 +44,10 @@ export {
 
 export {
   tryToCreateDailyNote,
+  createDailyNoteFile,
 } from "./dailyNotes";
 
 export {
   tryToCreateWeeklyNote,
+  createWeeklyNoteFile,
 } from "./weeklyNotes";

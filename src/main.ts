@@ -1,5 +1,5 @@
 import type { Moment, WeekSpec } from "moment";
-import { App, Plugin, WorkspaceLeaf, TFile, requestUrl } from "obsidian";
+import { App, Plugin, WorkspaceLeaf, TFile, FileView, requestUrl } from "obsidian";
 import { configureGlobalMomentLocale } from "obsidian-calendar-ui";
 
 import { VIEW_TYPE_CALENDAR, VIEW_TYPE_NC_CALENDAR, SETTINGS_UPDATED } from "./constants";
@@ -28,6 +28,9 @@ import {
 } from "./io/utils";
 import { createMonthlyNote, createQuarterlyNote, createYearlyNote } from "./io/gcNotes";
 import { createNCNote } from "./io/ncNotes";
+import { detectNoteType } from "./breadcrumbs/hierarchy";
+import { insertBreadcrumbsRelationships } from "./breadcrumbs/command";
+import { getFrontmatterFromCache } from "./io/utils";
 
 declare global {
   interface Window {
@@ -233,6 +236,26 @@ export default class CalendarPlugin extends Plugin {
       };
 
       this.addCommand({ id: `open-${p}-note`, name: `Open ${p} note`, callback: () => openFn(window.moment(), false) });
+    }
+
+    // Breadcrumbs integration command
+    const bc = this.options.breadcrumbs;
+    if (bc?.enabled) {
+      this.addCommand({
+        id: "insert-breadcrumbs",
+        name: "Insert Breadcrumbs relationships",
+        checkCallback: (checking: boolean) => {
+          const leaf = this.app.workspace.activeLeaf;
+          const activeFile = leaf?.view instanceof FileView ? leaf.view.file : null;
+          const valid = !!activeFile && detectNoteType(activeFile, getFrontmatterFromCache(activeFile)) !== null;
+          if (!checking && valid && activeFile) {
+            void insertBreadcrumbsRelationships(activeFile);
+          }
+          return valid;
+        },
+      });
+    } else {
+      (this.app.commands as any).removeCommand("new-calendar-suite:insert-breadcrumbs");
     }
   }
 

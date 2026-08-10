@@ -1,5 +1,5 @@
 import type { Moment } from "moment";
-import { parseFrontMatterTags, TFile } from "obsidian";
+import { TFile, parseYaml, parseFrontMatterTags } from "obsidian";
 import type { ICalendarSource, IDayMetadata } from "obsidian-calendar-ui";
 import { getDailyNote, getWeeklyNote } from "obsidian-daily-notes-interface";
 import { get } from "svelte/store";
@@ -8,31 +8,51 @@ import { partition } from "src/ui/utils";
 
 import { dailyNotes, weeklyNotes } from "../stores";
 
-function getNoteTags(note: TFile | null): string[] {
-  if (!note) {
-    return [];
+/**
+ * Read frontmatter from a note — cache-first, with filesystem fallback.
+ * The fallback is essential for files synced via WebDAV or external tools:
+ * Obsidian's metadata cache may not be populated yet when the file first
+ * appears, so we parse the YAML frontmatter directly from disk.
+ */
+async function getNoteFrontmatter(note: TFile | null): Promise<Record<string, any> | null> {
+  if (!note) return null;
+
+  // 1. Fast path: metadata cache (populated after Obsidian indexes the file)
+  const cached = window.app.metadataCache.getFileCache(note)?.frontmatter;
+  if (cached) return cached;
+
+  // 2. Slow path: read the file and parse YAML frontmatter ourselves.
+  //    Needed when files arrive via external sync before Obsidian indexes them.
+  try {
+    const raw = await window.app.vault.cachedRead(note);
+    if (raw.startsWith("---")) {
+      const endIdx = raw.indexOf("---", 3);
+      if (endIdx !== -1) {
+        const yamlBlock = raw.slice(3, endIdx);
+        return parseYaml(yamlBlock) || null;
+      }
+    }
+  } catch {
+    // File may be inaccessible — that's fine, just return null
   }
 
-  const { metadataCache } = window.app;
-  const frontmatter = metadataCache.getFileCache(note)?.frontmatter;
-
-  const tags = [];
-
-  if (frontmatter) {
-    const frontmatterTags = parseFrontMatterTags(frontmatter) || [];
-    tags.push(...frontmatterTags);
-  }
-
-  // strip the '#' at the beginning
-  return tags.map((tag) => tag.substring(1));
+  return null;
 }
 
-function getFormattedTagAttributes(note: TFile | null): Record<string, string> {
+async function getNoteTags(note: TFile | null): Promise<string[]> {
+  const frontmatter = await getNoteFrontmatter(note);
+  if (!frontmatter) return [];
+  const tags = parseFrontMatterTags(frontmatter) || [];
+  // strip the '#' at the beginning
+  return tags.map((tag: string) => tag.replace(/^#/, ""));
+}
+
+async function getFormattedTagAttributes(note: TFile | null): Promise<Record<string, string>> {
   const attrs: Record<string, string> = {};
-  const tags = getNoteTags(note);
+  const tags = await getNoteTags(note);
 
   const [emojiTags, nonEmojiTags] = partition(tags, (tag) =>
-    /(?:[\u2700-\u27bf]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[\u0023-\u0039]\ufe0f?\u20e3|\u3299|\u3297|\u303d|\u3030|\u24c2|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|\ud83c\udd8e|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|\ud83c\ude1a|\ud83c\ude2f|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|\u203c|\u2049|[\u25aa-\u25ab]|\u25b6|\u25c0|[\u25fb-\u25fe]|\u00a9|\u00ae|\u2122|\u2139|\ud83c\udc04|[\u2600-\u26FF]|\u2b05|\u2b06|\u2b07|\u2b1b|\u2b1c|\u2b50|\u2b55|\u231a|\u231b|\u2328|\u23cf|[\u23e9-\u23f3]|[\u23f8-\u23fa]|\ud83c\udccf|\u2934|\u2935|[\u2190-\u21ff])/.test(
+    /(?:[✀-➿]|(?:\ud83c[\udde6-\uddff]){2}|[\ud800-\udbff][\udc00-\udfff]|[#-9]️?⃣|㊙|㊗|〽|〰|Ⓜ|\ud83c[\udd70-\udd71]|\ud83c[\udd7e-\udd7f]|🆎|\ud83c[\udd91-\udd9a]|\ud83c[\udde6-\uddff]|\ud83c[\ude01-\ude02]|🈚|🈯|\ud83c[\ude32-\ude3a]|\ud83c[\ude50-\ude51]|‼|⁉|[▪-▫]|▶|◀|[◻-◾]|©|®|™|ℹ|🀄|[☀-⛿]|⬅|⬆|⬇|⬛|⬜|⭐|⭕|⌚|⌛|⌨|⏏|[⏩-⏳]|[⏸-⏺]|🃏|⤴|⤵|[←-⇿])/.test(
       tag
     )
   );
@@ -51,14 +71,14 @@ export const customTagsSource: ICalendarSource = {
   getDailyMetadata: async (date: Moment): Promise<IDayMetadata> => {
     const file = getDailyNote(date, get(dailyNotes));
     return {
-      dataAttributes: getFormattedTagAttributes(file),
+      dataAttributes: await getFormattedTagAttributes(file),
       dots: [],
     };
   },
   getWeeklyMetadata: async (date: Moment): Promise<IDayMetadata> => {
     const file = getWeeklyNote(date, get(weeklyNotes));
     return {
-      dataAttributes: getFormattedTagAttributes(file),
+      dataAttributes: await getFormattedTagAttributes(file),
       dots: [],
     };
   },

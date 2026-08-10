@@ -12,56 +12,70 @@
   "daily": {
     "enabled": true,
     "format": "",
-    "template": "Templates/Daily Note Template.md",
-    "folder": "periodic-notes"
+    "template": "test-templates/daily.md",
+    "folder": "periodic-notes/daily"
   },
   "weekly": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": "periodic-notes"
+    "template": "test-templates/weekly.md",
+    "folder": "periodic-notes/weekly"
   },
   "monthly": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": ""
+    "template": "test-templates/monthly.md",
+    "folder": "periodic-notes/monthly"
   },
   "quarterly": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": ""
+    "template": "test-templates/quarterly.md",
+    "folder": "periodic-notes/quarterly"
   },
   "yearly": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": ""
+    "template": "test-templates/yearly.md",
+    "folder": "periodic-notes/yearly"
   },
   "ncPhase": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": ""
+    "template": "test-templates/nc-phase.md",
+    "folder": "periodic-notes/nc-phase"
   },
   "ncMonth": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": "tem"
+    "template": "test-templates/nc-month.md",
+    "folder": "periodic-notes/nc-month"
   },
   "ncSeason": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": ""
+    "template": "test-templates/nc-season.md",
+    "folder": "periodic-notes/nc-season"
   },
   "ncYear": {
     "enabled": true,
     "format": "",
-    "template": "",
-    "folder": ""
+    "template": "test-templates/nc-year.md",
+    "folder": "periodic-notes/nc-year"
+  },
+  "breadcrumbs": {
+    "enabled": true,
+    "fieldUp": "up",
+    "fieldDown": "down",
+    "fieldPrev": "prev",
+    "fieldNext": "next",
+    "linkStyle": "wikilink",
+    "outputMode": "yaml",
+    "dataviewTemplate": "{field}:: {value}",
+    "dataviewPosition": "after-yaml",
+    "dataviewMarker": "<!-- bc:insert -->",
+    "dualUpWeekly": true,
+    "autoInverse": false
   },
   "hasMigratedLegacySettings": true
 }
