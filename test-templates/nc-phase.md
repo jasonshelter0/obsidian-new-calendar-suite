@@ -6,6 +6,6 @@ gc-date: "{{date}}"
 
 # NC Phase {{nc-date}}
 
-> GC: {{date}} | Created: {{time}}
+> 🌐 GC: {{date}} | 🕒 {{time}}
 
 ## Notes

@@ -799,20 +799,38 @@ class CalendarSettingsTab extends obsidian.PluginSettingTab {
         });
     }
     async addHolidayRegionSetting() {
+        const dataPath = `${this.plugin.manifest.dir}/holidays.json`;
+        const adapter = this.app.vault.adapter;
         let regions = ["None"];
+        // Read meta directly from file (not just the store — store may not be set yet)
+        let fileMeta = {};
         try {
-            const dataPath = `${this.plugin.manifest.dir}/holidays.json`;
-            const adapter = this.app.vault.adapter;
             if (await adapter.exists(dataPath)) {
                 const content = await adapter.read(dataPath);
                 const all = JSON.parse(content);
-                const keys = Object.keys(all).filter((k) => k !== "None");
+                const keys = Object.keys(all).filter((k) => k !== "_meta" && k !== "None");
                 regions = ["None", ...keys];
+                fileMeta = all._meta || {};
             }
         }
         catch (e) {
             console.error("Failed to read holiday regions", e);
         }
+        // Status display element (will be updated by refresh/download actions)
+        const statusEl = this.containerEl.createDiv({ cls: "setting-item-description" });
+        const updateStatus = () => {
+            const m = get_store_value(holidayMeta);
+            if (m.source) {
+                statusEl.setText(`Holiday data: ${m.source} (updated ${m.updated || "unknown"})`);
+            }
+            else if (fileMeta.source) {
+                statusEl.setText(`Holiday data: ${fileMeta.source} (updated ${fileMeta.updated || "unknown"})`);
+            }
+            else {
+                statusEl.setText("Holiday data: not downloaded. Use the button below to fetch it.");
+            }
+        };
+        updateStatus();
         new obsidian.Setting(this.containerEl)
             .setName("Holiday Region")
             .setDesc("Select a region to load holiday data.")
@@ -823,14 +841,53 @@ class CalendarSettingsTab extends obsidian.PluginSettingTab {
                 await this.plugin.writeOptions(() => ({ holidayRegion: value }));
             });
         });
-        const meta = get_store_value(holidayMeta);
-        const statusEl = this.containerEl.createDiv({ cls: "setting-item-description" });
-        if (meta.source) {
-            statusEl.setText(`Holiday data: ${meta.source} (updated ${meta.updated || "unknown"})`);
-        }
-        else {
-            statusEl.setText("Holiday data: not loaded. Select a region above to auto-download.");
-        }
+        // Refresh + Download buttons
+        const btnRow = this.containerEl.createDiv({ cls: "setting-item" });
+        const btnContainer = btnRow.createDiv({ cls: "setting-item-control" });
+        const refreshBtn = btnContainer.createEl("button", { text: "Refresh status" });
+        refreshBtn.onclick = async () => {
+            try {
+                if (await adapter.exists(dataPath)) {
+                    const content = await adapter.read(dataPath);
+                    const all = JSON.parse(content);
+                    holidayMeta.set(all._meta || {});
+                    new obsidian.Notice("Holiday status refreshed");
+                }
+                else {
+                    holidayMeta.set({});
+                    new obsidian.Notice("holidays.json not found locally");
+                }
+                updateStatus();
+            }
+            catch (e) {
+                new obsidian.Notice("Failed to read holidays.json");
+            }
+        };
+        const downloadBtn = btnContainer.createEl("button", { text: "Download from GitHub" });
+        downloadBtn.style.marginLeft = "8px";
+        downloadBtn.onclick = async () => {
+            new obsidian.Notice("Downloading holidays.json...");
+            try {
+                const url = "https://raw.githubusercontent.com/jasonshelter0/obsidian-new-calendar-suite/main/holidays.json";
+                const resp = await obsidian.requestUrl({ url });
+                if (resp.status === 200) {
+                    const raw = JSON.parse(resp.text);
+                    raw._meta = { source: "v" + this.plugin.manifest.version, updated: new Date().toISOString().slice(0, 10) };
+                    await adapter.write(dataPath, JSON.stringify(raw, null, 2));
+                    holidayMeta.set(raw._meta);
+                    holidays.set({});
+                    new obsidian.Notice("holidays.json downloaded successfully!");
+                    updateStatus();
+                }
+                else {
+                    new obsidian.Notice("Download failed — HTTP " + resp.status);
+                }
+            }
+            catch (e) {
+                new obsidian.Notice("Download failed. Check console for details.");
+                console.warn("[New Calendar Suite] Manual download failed:", e);
+            }
+        };
     }
     addDotThresholdSetting() {
         new obsidian.Setting(this.containerEl)

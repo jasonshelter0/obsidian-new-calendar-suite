@@ -6,7 +6,7 @@ gc-date: "{{date}}"
 
 # NC Year {{nc-date}}
 
-> GC: {{date}} | Created: {{time}}
+> 🌐 GC: {{date}} | 🕒 {{time}}
 
 ## Annual Goals
 

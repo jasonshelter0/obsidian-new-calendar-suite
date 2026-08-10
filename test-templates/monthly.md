@@ -1,11 +1,11 @@
 ---
 gc-type: monthly
-date: "{{date}}"
+gc-date: "{{date}}"
 ---
 
 # {{date}}
 
-> Created: {{time}}
+> 🕒 {{time}}
 
 ## Goals
 

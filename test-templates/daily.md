@@ -1,11 +1,10 @@
 ---
 gc-type: daily
-date: "{{date}}"
+gc-date: "{{date}}"
 ---
 
 # {{date}}
 
-> Created: {{time}}
+> 🕒 {{time}} | ◀ {{yesterday}} | ▶ {{tomorrow}}
 
 ## Notes
-

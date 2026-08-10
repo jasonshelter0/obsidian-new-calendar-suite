@@ -1,11 +1,11 @@
 ---
 gc-type: yearly
-date: "{{date}}"
+gc-date: "{{date}}"
 ---
 
 # {{date}}
 
-> Created: {{time}}
+> 🕒 {{time}}
 
 ## Annual Goals
 

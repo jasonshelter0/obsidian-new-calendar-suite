@@ -1,22 +1,16 @@
 ---
 gc-type: weekly
-date: "{{date}}"
+gc-date: "{{date}}"
 ---
 
 # Week {{date}}
 
-> Created: {{time}}
+> 🕒 {{time}}
 
-## Monday ({{monday:YYYY-MM-DD}})
+| Mon | Tue | Wed | Thu | Fri | Sat | Sun |
+|-----|-----|-----|-----|-----|-----|-----|
+| {{monday:MM-DD}} | {{tuesday:MM-DD}} | {{wednesday:MM-DD}} | {{thursday:MM-DD}} | {{friday:MM-DD}} | {{saturday:MM-DD}} | {{sunday:MM-DD}} |
 
-## Tuesday ({{tuesday:YYYY-MM-DD}})
+## Goals
 
-## Wednesday ({{wednesday:YYYY-MM-DD}})
-
-## Thursday ({{thursday:YYYY-MM-DD}})
-
-## Friday ({{friday:YYYY-MM-DD}})
-
-## Saturday ({{saturday:YYYY-MM-DD}})
-
-## Sunday ({{sunday:YYYY-MM-DD}})
+## Review

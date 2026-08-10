@@ -7,6 +7,8 @@ import {
   TFile,
   TFolder,
   Vault,
+  Notice,
+  requestUrl,
 } from "obsidian";
 import type { ILocaleOverride, IWeekStartOption } from "obsidian-calendar-ui";
 import { get } from "svelte/store";
@@ -14,7 +16,7 @@ import { get } from "svelte/store";
 import { DEFAULT_WEEK_FORMAT, DEFAULT_WORDS_PER_DOT } from "src/constants";
 
 import type CalendarPlugin from "./main";
-import { holidayMeta } from "./ui/stores";
+import { holidayMeta, holidays } from "./ui/stores";
 
 export interface IPeriodicNoteSettings {
   enabled: boolean;
@@ -267,20 +269,37 @@ export class CalendarSettingsTab extends PluginSettingTab {
   }
 
   async addHolidayRegionSetting(): Promise<void> {
+    const dataPath = `${this.plugin.manifest.dir}/holidays.json`;
+    const adapter = this.app.vault.adapter;
     let regions: string[] = ["None"];
 
+    // Read meta directly from file (not just the store — store may not be set yet)
+    let fileMeta: any = {};
     try {
-      const dataPath = `${this.plugin.manifest.dir}/holidays.json`;
-      const adapter = this.app.vault.adapter;
       if (await adapter.exists(dataPath)) {
         const content = await adapter.read(dataPath);
         const all = JSON.parse(content);
-        const keys = Object.keys(all).filter((k) => k !== "None");
+        const keys = Object.keys(all).filter((k) => k !== "_meta" && k !== "None");
         regions = ["None", ...keys];
+        fileMeta = all._meta || {};
       }
     } catch (e) {
       console.error("Failed to read holiday regions", e);
     }
+
+    // Status display element (will be updated by refresh/download actions)
+    const statusEl = this.containerEl.createDiv({ cls: "setting-item-description" });
+    const updateStatus = () => {
+      const m = get(holidayMeta);
+      if (m.source) {
+        statusEl.setText(`Holiday data: ${m.source} (updated ${m.updated || "unknown"})`);
+      } else if (fileMeta.source) {
+        statusEl.setText(`Holiday data: ${fileMeta.source} (updated ${fileMeta.updated || "unknown"})`);
+      } else {
+        statusEl.setText("Holiday data: not downloaded. Use the button below to fetch it.");
+      }
+    };
+    updateStatus();
 
     new Setting(this.containerEl)
       .setName("Holiday Region")
@@ -293,13 +312,51 @@ export class CalendarSettingsTab extends PluginSettingTab {
         });
       });
 
-    const meta = get(holidayMeta);
-    const statusEl = this.containerEl.createDiv({ cls: "setting-item-description" });
-    if (meta.source) {
-      statusEl.setText(`Holiday data: ${meta.source} (updated ${meta.updated || "unknown"})`);
-    } else {
-      statusEl.setText("Holiday data: not loaded. Select a region above to auto-download.");
-    }
+    // Refresh + Download buttons
+    const btnRow = this.containerEl.createDiv({ cls: "setting-item" });
+    const btnContainer = btnRow.createDiv({ cls: "setting-item-control" });
+
+    const refreshBtn = btnContainer.createEl("button", { text: "Refresh status" });
+    refreshBtn.onclick = async () => {
+      try {
+        if (await adapter.exists(dataPath)) {
+          const content = await adapter.read(dataPath);
+          const all = JSON.parse(content);
+          holidayMeta.set(all._meta || {});
+          new Notice("Holiday status refreshed");
+        } else {
+          holidayMeta.set({});
+          new Notice("holidays.json not found locally");
+        }
+        updateStatus();
+      } catch (e) {
+        new Notice("Failed to read holidays.json");
+      }
+    };
+
+    const downloadBtn = btnContainer.createEl("button", { text: "Download from GitHub" });
+    downloadBtn.style.marginLeft = "8px";
+    downloadBtn.onclick = async () => {
+      new Notice("Downloading holidays.json...");
+      try {
+        const url = "https://raw.githubusercontent.com/jasonshelter0/obsidian-new-calendar-suite/main/holidays.json";
+        const resp = await requestUrl({ url });
+        if (resp.status === 200) {
+          const raw = JSON.parse(resp.text);
+          raw._meta = { source: "v" + this.plugin.manifest.version, updated: new Date().toISOString().slice(0, 10) };
+          await adapter.write(dataPath, JSON.stringify(raw, null, 2));
+          holidayMeta.set(raw._meta);
+          holidays.set({});
+          new Notice("holidays.json downloaded successfully!");
+          updateStatus();
+        } else {
+          new Notice("Download failed — HTTP " + resp.status);
+        }
+      } catch (e) {
+        new Notice("Download failed. Check console for details.");
+        console.warn("[New Calendar Suite] Manual download failed:", e);
+      }
+    };
   }
 
   addDotThresholdSetting(): void {

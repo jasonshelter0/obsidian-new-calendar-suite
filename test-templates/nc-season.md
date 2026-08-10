@@ -6,7 +6,7 @@ gc-date: "{{date}}"
 
 # NC Season {{nc-date}}
 
-> GC: {{date}} | Created: {{time}}
+> 🌐 GC: {{date}} | 🕒 {{time}}
 
 ## Season Goals
 

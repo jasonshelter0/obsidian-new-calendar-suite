@@ -1,12 +1,17 @@
 ---
 gc-type: quarterly
-date: "{{date}}"
+gc-date: "{{date}}"
 ---
 
-# Q{{date:Q}} {{date:YYYY}}
+# {{date}}
 
-> Created: {{time}}
+> 🕒 {{time}}
 
 ## Goals
+
+## Month Summaries
+- Month 1:
+- Month 2:
+- Month 3:
 
 ## Retrospective
