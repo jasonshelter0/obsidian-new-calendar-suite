@@ -2983,7 +2983,7 @@ async function tryToCreateDailyNote(date, inNewSplit, settings, cb) {
     const normalizedPath = await getNotePath(folder, filename);
     // ── Check filesystem first — file may exist even if store isn't indexed ──
     const existingFile = vault.getAbstractFileByPath(normalizedPath);
-    if (existingFile && existingFile instanceof obsidian.TFile) {
+    if (existingFile) {
         const leaf = inNewSplit
             ? workspace.splitActiveLeaf()
             : workspace.getUnpinnedLeaf();
@@ -3014,7 +3014,7 @@ async function tryToCreateDailyNote(date, inNewSplit, settings, cb) {
             console.error(`Failed to create daily note: '${normalizedPath}'`, err);
             // Last-resort fallback: re-check filesystem in case of race
             const file = vault.getAbstractFileByPath(normalizedPath);
-            if (file instanceof obsidian.TFile) {
+            if (file) {
                 const leaf = inNewSplit
                     ? workspace.splitActiveLeaf()
                     : workspace.getUnpinnedLeaf();
@@ -3043,10 +3043,7 @@ async function createDailyNoteFile(date) {
     const { vault } = window.app;
     const { format, folder, template } = getDailyNoteSettings();
     const filename = date.format(format);
-    const normalizedPath = await getNotePath(folder, filename);
-    const existing = vault.getAbstractFileByPath(normalizedPath);
-    if (existing instanceof obsidian.TFile)
-        return existing;
+    const path = folder ? `${folder}/${filename}.md` : `${filename}.md`;
     try {
         const [templateContents, IFoldInfo] = await getTemplateInfo(template);
         const contents = replaceTemplateTokens(templateContents, date, {
@@ -3054,13 +3051,17 @@ async function createDailyNoteFile(date) {
             nc: true,
             ncInfo: NC.getNCDate(date),
         });
-        const file = await vault.create(normalizedPath, contents);
+        const file = await vault.create(path, contents);
         if (IFoldInfo)
             window.app.foldManager.save(file, IFoldInfo);
         return file;
     }
     catch (err) {
-        console.error(`[Breadcrumbs] Failed to create daily note: '${normalizedPath}'`, err);
+        // File already exists — vault.create rejects, just look it up
+        const existing = vault.getAbstractFileByPath(path);
+        if (existing)
+            return existing;
+        console.error(`Failed to create daily note: '${path}'`, err);
         return undefined;
     }
 }
@@ -3077,7 +3078,7 @@ async function tryToCreateWeeklyNote(date, inNewSplit, settings, cb) {
     const normalizedPath = await getNotePath(folder, filename);
     // ── Check filesystem first — file may exist even if store isn't indexed ──
     const existingFile = vault.getAbstractFileByPath(normalizedPath);
-    if (existingFile && existingFile instanceof obsidian.TFile) {
+    if (existingFile) {
         const leaf = inNewSplit
             ? workspace.splitActiveLeaf()
             : workspace.getUnpinnedLeaf();
@@ -3108,7 +3109,7 @@ async function tryToCreateWeeklyNote(date, inNewSplit, settings, cb) {
             console.error(`Failed to create weekly note: '${normalizedPath}'`, err);
             // Last-resort fallback: re-check filesystem in case of race
             const file = vault.getAbstractFileByPath(normalizedPath);
-            if (file instanceof obsidian.TFile) {
+            if (file) {
                 const leaf = inNewSplit
                     ? workspace.splitActiveLeaf()
                     : workspace.getUnpinnedLeaf();
@@ -3137,10 +3138,7 @@ async function createWeeklyNoteFile(date) {
     const { vault } = window.app;
     const { format, folder, template } = getWeeklyNoteSettings();
     const filename = date.format(format);
-    const normalizedPath = await getNotePath(folder, filename);
-    const existing = vault.getAbstractFileByPath(normalizedPath);
-    if (existing instanceof obsidian.TFile)
-        return existing;
+    const path = folder ? `${folder}/${filename}.md` : `${filename}.md`;
     try {
         const [templateContents, IFoldInfo] = await getTemplateInfo(template);
         const contents = replaceTemplateTokens(templateContents, date, {
@@ -3148,13 +3146,17 @@ async function createWeeklyNoteFile(date) {
             nc: true,
             ncInfo: NC.getNCDate(date),
         });
-        const file = await vault.create(normalizedPath, contents);
+        const file = await vault.create(path, contents);
         if (IFoldInfo)
             window.app.foldManager.save(file, IFoldInfo);
         return file;
     }
     catch (err) {
-        console.error(`[Breadcrumbs] Failed to create weekly note: '${normalizedPath}'`, err);
+        // File already exists — vault.create rejects, just look it up
+        const existing = vault.getAbstractFileByPath(path);
+        if (existing)
+            return existing;
+        console.error(`Failed to create weekly note: '${path}'`, err);
         return undefined;
     }
 }

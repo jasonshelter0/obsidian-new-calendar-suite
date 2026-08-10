@@ -29,12 +29,12 @@ export async function tryToCreateDailyNote(
 
   // ── Check filesystem first — file may exist even if store isn't indexed ──
   const existingFile = vault.getAbstractFileByPath(normalizedPath);
-  if (existingFile && existingFile instanceof TFile) {
+  if (existingFile) {
     const leaf = inNewSplit
       ? workspace.splitActiveLeaf()
       : workspace.getUnpinnedLeaf();
-    await leaf.openFile(existingFile, { active: true });
-    cb?.(existingFile);
+    await leaf.openFile(existingFile as TFile, { active: true });
+    cb?.(existingFile as TFile);
     return;
   }
 
@@ -60,12 +60,12 @@ export async function tryToCreateDailyNote(
       console.error(`Failed to create daily note: '${normalizedPath}'`, err);
       // Last-resort fallback: re-check filesystem in case of race
       const file = vault.getAbstractFileByPath(normalizedPath);
-      if (file instanceof TFile) {
+      if (file) {
         const leaf = inNewSplit
           ? workspace.splitActiveLeaf()
           : workspace.getUnpinnedLeaf();
-        await leaf.openFile(file, { active: true });
-        cb?.(file);
+        await leaf.openFile(file as TFile, { active: true });
+        cb?.(file as TFile);
       }
     }
   };
@@ -90,10 +90,7 @@ export async function createDailyNoteFile(date: Moment): Promise<TFile | undefin
   const { vault } = window.app;
   const { format, folder, template } = getDailyNoteSettings();
   const filename = date.format(format);
-  const normalizedPath = await getNotePath(folder, filename);
-
-  const existing = vault.getAbstractFileByPath(normalizedPath);
-  if (existing instanceof TFile) return existing;
+  const path = folder ? `${folder}/${filename}.md` : `${filename}.md`;
 
   try {
     const [templateContents, IFoldInfo] = await getTemplateInfo(template);
@@ -102,11 +99,14 @@ export async function createDailyNoteFile(date: Moment): Promise<TFile | undefin
       nc: true,
       ncInfo: NC.getNCDate(date),
     });
-    const file = await vault.create(normalizedPath, contents);
+    const file = await vault.create(path, contents);
     if (IFoldInfo) (window.app as any).foldManager.save(file, IFoldInfo);
     return file;
   } catch (err) {
-    console.error(`[Breadcrumbs] Failed to create daily note: '${normalizedPath}'`, err);
+    // File already exists — vault.create rejects, just look it up
+    const existing = vault.getAbstractFileByPath(path) as TFile;
+    if (existing) return existing;
+    console.error(`Failed to create daily note: '${path}'`, err);
     return undefined;
   }
 }
