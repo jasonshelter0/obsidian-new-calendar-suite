@@ -22,19 +22,19 @@
     "folder": "periodic-notes"
   },
   "monthly": {
-    "enabled": false,
+    "enabled": true,
     "format": "",
     "template": "",
     "folder": ""
   },
   "quarterly": {
-    "enabled": false,
+    "enabled": true,
     "format": "",
     "template": "",
     "folder": ""
   },
   "yearly": {
-    "enabled": false,
+    "enabled": true,
     "format": "",
     "template": "",
     "folder": ""

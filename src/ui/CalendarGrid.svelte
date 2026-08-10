@@ -31,6 +31,9 @@
   export let onClickNCMonth: ((ny: number, nm: number) => void) | null = null;
   export let onClickNCPhase: ((ny: number, nm: number, phase: number) => void) | null = null;
   export let onClickNCSeason: ((ny: number, season: number) => void) | null = null;
+  export let onClickGCMonth: ((date: Moment) => void) | null = null;
+  export let onClickGCQuarter: ((date: Moment) => void) | null = null;
+  export let onClickGCYear: ((date: Moment) => void) | null = null;
 
   let days: {
     date: Moment;
@@ -43,6 +46,7 @@
   }[][] = [];
 
   let ncInfo: { ny: number; nm: number; color: string; phase: number; season: number; gcStart: string; gcEnd: string } | null = null;
+  let gcInfo: { quarter: number; quarterLabel: string; monthNum: number; year: number } | null = null;
 
   $: if (mode === "NC" && displayedMonth) {
     const info = NC.getNCDate(displayedMonth);
@@ -56,11 +60,20 @@
     ncInfo = null;
   }
 
-  $: title = (mode === "GC" && displayedMonth)
-    ? displayedMonth.format("MMMM YYYY")
+  $: if (mode === "GC" && displayedMonth) {
+    const m = displayedMonth.month(); // 0-11
+    const q = Math.floor(m / 3) + 1;
+    gcInfo = { quarter: q, quarterLabel: `Q${q}`, monthNum: m + 1, year: displayedMonth.year() };
+  } else {
+    gcInfo = null;
+  }
+
+  $: title = (mode === "GC" && gcInfo)
+    ? `${displayedMonth.format("MMMM")}, ${gcInfo.quarterLabel} ${gcInfo.year}`
     : (ncInfo ? toChineseYearMonth(ncInfo.ny, ncInfo.nm) : "");
 
   const monthIndices = Array.from({ length: 16 }, (_, i) => (i + 1).toString().padStart(2, "0"));
+  const gcMonthIndices = Array.from({ length: 12 }, (_, i) => (i + 1).toString());
 
   let hasScrolledToToday = false;
 
@@ -246,6 +259,13 @@
     }
   }
 
+  function prevQuarter() {
+    displayedMonth = displayedMonth.clone().subtract(3, "months");
+  }
+  function nextQuarter() {
+    displayedMonth = displayedMonth.clone().add(3, "months");
+  }
+
   function goToday() {
     displayedMonth = today.clone();
   }
@@ -303,8 +323,12 @@
   <div class="calendar-top-bar">
   <!-- Row 1: Title centered -->
   <div class="calendar-title-row">
-    {#if mode === "GC"}
-      <span class="gc-title-text">{title}</span>
+    {#if mode === "GC" && gcInfo}
+      <span class="gc-title-month" on:click={() => onClickGCMonth?.(displayedMonth)} title="Open monthly note">{displayedMonth.format("MMMM")}</span>
+      <span class="nc-sep">,</span>
+      <span class="gc-title-season" on:click={() => onClickGCQuarter?.(displayedMonth)} title="Open quarterly note">{gcInfo.quarterLabel}</span>
+      <span class="nc-sep">&middot;</span>
+      <span class="gc-title-year" on:click={() => onClickGCYear?.(displayedMonth)} title="Open yearly note">{gcInfo.year}</span>
     {:else if ncInfo}
       <span class="nc-year-text" on:click={() => onClickNCMonth?.(ncInfo.ny, 1)} title="Open NC Year note">
         {ncInfo.ny === 1 ? "元年" : `${numToChinese(ncInfo.ny)}年`}
@@ -333,6 +357,8 @@
       <button class="nav-chev nav-chev-lg" on:click={prevYear} title="Previous year">&lt;&lt;&lt;</button>
       {#if mode === "NC" && ncInfo}
         <button class="nav-chev nav-chev-md" on:click={prevSeason} title="Previous season">&lt;&lt;</button>
+      {:else if mode === "GC"}
+        <button class="nav-chev nav-chev-md" on:click={prevQuarter} title="Previous quarter">&lt;&lt;</button>
       {/if}
       <button class="nav-chev" on:click={prevMonth} title="Previous month">&lt;</button>
     </div>
@@ -341,12 +367,20 @@
       <span class="month-matrix">
         {#each monthIndices as mIdx}<span class="month-dot" class:active={ncInfo.nm === parseInt(mIdx)} style="--dot-color: {ncMonthColour[mIdx]};" title="{parseInt(mIdx)}月"></span>{/each}
       </span>
+    {:else if mode === "GC" && gcInfo}
+      <span class="month-matrix gc">
+        {#each gcMonthIndices as mIdx}
+          <span class="month-dot gc" class:active={gcInfo.monthNum === parseInt(mIdx)} title={"Q" + (Math.floor((parseInt(mIdx) - 1) / 3) + 1)}></span>
+        {/each}
+      </span>
     {/if}
 
     <div class="calendar-nav">
       <button class="nav-chev" on:click={nextMonth} title="Next month">&gt;</button>
       {#if mode === "NC" && ncInfo}
         <button class="nav-chev nav-chev-md" on:click={nextSeason} title="Next season">&gt;&gt;</button>
+      {:else if mode === "GC"}
+        <button class="nav-chev nav-chev-md" on:click={nextQuarter} title="Next quarter">&gt;&gt;</button>
       {/if}
       <button class="nav-chev nav-chev-lg" on:click={nextYear} title="Next year">&gt;&gt;&gt;</button>
     </div>
@@ -510,6 +544,22 @@
     transform: scale(1.4);
     box-shadow: 0 0 5px var(--dot-color);
   }
+  .month-matrix.gc {
+    grid-template-rows: repeat(2, 1fr);
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+  }
+  .month-dot.gc {
+    width: 5px;
+    height: 5px;
+    background-color: var(--text-faint);
+    opacity: 0.3;
+  }
+  .month-dot.gc.active {
+    background-color: var(--text-accent);
+    opacity: 1;
+    box-shadow: 0 0 4px var(--text-accent);
+  }
   .nav-chev {
     cursor: pointer;
     background: none !important;
@@ -554,6 +604,24 @@
        .gc-title-text {
          color: var(--text-accent);
        }
+       .gc-title-month {
+         color: var(--text-accent);
+         cursor: pointer;
+         transition: opacity 0.15s;
+       }
+       .gc-title-month:hover { opacity: 0.7; }
+       .gc-title-season {
+         color: var(--text-accent);
+         cursor: pointer;
+         transition: opacity 0.15s;
+       }
+       .gc-title-season:hover { opacity: 0.7; }
+       .gc-title-year {
+         cursor: pointer;
+         color: var(--text-normal);
+         transition: opacity 0.15s;
+       }
+       .gc-title-year:hover { opacity: 0.7; }
        .nc-year-text {
          cursor: pointer;
          color: var(--text-normal);

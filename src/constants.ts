@@ -14,7 +14,7 @@ export const DEFAULT_WORDS_PER_DOT = 250;
 export const DEFAULT_DAILY_FORMAT = "YYYY-MM-DD";
 export const DEFAULT_WEEKLY_FORMAT = "gggg-[W]ww";
 export const DEFAULT_MONTHLY_FORMAT = "YYYY-MM";
-export const DEFAULT_QUARTERLY_FORMAT = "YYYY-[Q]Q";
+export const DEFAULT_QUARTERLY_FORMAT = "YYYY-[Season]";
 export const DEFAULT_YEARLY_FORMAT = "YYYY";
 
 // NC defaults

@@ -27,7 +27,15 @@ async function createPeriodicNote(
   };
 
   const { template, format, folder } = getSettings[granularity]();
-  const filename = date.format(format);
+
+  // Standard quarter: Q1=Jan-Mar, Q2=Apr-Jun, Q3=Jul-Sep, Q4=Oct-Dec
+  let effectiveFormat = format;
+  if (granularity === "quarter") {
+    const q = Math.floor(date.month() / 3) + 1;
+    effectiveFormat = format.replace(/\[Season\]/g, `[Q${q}]`);
+  }
+
+  const filename = date.format(effectiveFormat);
   const normalizedPath = await getNotePath(folder, filename);
 
   // Return existing file if already created

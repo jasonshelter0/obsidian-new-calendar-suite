@@ -5,6 +5,7 @@ import { get } from "svelte/store";
 import { TRIGGER_ON_OPEN, VIEW_TYPE_CALENDAR } from "src/constants";
 import { tryToCreateDailyNote } from "src/io/dailyNotes";
 import { tryToCreateWeeklyNote } from "src/io/weeklyNotes";
+import { createMonthlyNote, createQuarterlyNote, createYearlyNote } from "src/io/gcNotes";
 import {
   getDailyNoteSettings,
   getWeeklyNoteSettings,
@@ -38,6 +39,9 @@ export default class CalendarView extends ItemView {
 
     this.openOrCreateDailyNote = this.openOrCreateDailyNote.bind(this);
     this.openOrCreateWeeklyNote = this.openOrCreateWeeklyNote.bind(this);
+    this.openOrCreateGCMonth = this.openOrCreateGCMonth.bind(this);
+    this.openOrCreateGCQuarter = this.openOrCreateGCQuarter.bind(this);
+    this.openOrCreateGCYear = this.openOrCreateGCYear.bind(this);
 
     this.onNoteSettingsUpdate = this.onNoteSettingsUpdate.bind(this);
     this.onFileCreated = this.onFileCreated.bind(this);
@@ -118,6 +122,9 @@ export default class CalendarView extends ItemView {
         onHoverWeek: this.onHoverWeek,
         onContextMenuDay: this.onContextMenuDay,
         onContextMenuWeek: this.onContextMenuWeek,
+        onClickGCMonth: this.openOrCreateGCMonth,
+        onClickGCQuarter: this.openOrCreateGCQuarter,
+        onClickGCYear: this.openOrCreateGCYear,
         sources,
       },
     });
@@ -267,6 +274,30 @@ export default class CalendarView extends ItemView {
         this.calendar.$set({ displayedMonth: date });
         return;
       }
+    }
+  }
+
+  async openOrCreateGCMonth(date: Moment): Promise<void> {
+    const note = await createMonthlyNote(date.clone().startOf("month"));
+    if (note) {
+      const leaf = this.app.workspace.getUnpinnedLeaf();
+      await leaf.openFile(note, { active: true });
+    }
+  }
+
+  async openOrCreateGCQuarter(date: Moment): Promise<void> {
+    const note = await createQuarterlyNote(date.clone().startOf("quarter"));
+    if (note) {
+      const leaf = this.app.workspace.getUnpinnedLeaf();
+      await leaf.openFile(note, { active: true });
+    }
+  }
+
+  async openOrCreateGCYear(date: Moment): Promise<void> {
+    const note = await createYearlyNote(date.clone().startOf("year"));
+    if (note) {
+      const leaf = this.app.workspace.getUnpinnedLeaf();
+      await leaf.openFile(note, { active: true });
     }
   }
 

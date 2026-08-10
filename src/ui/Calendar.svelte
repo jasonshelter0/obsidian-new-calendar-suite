@@ -24,6 +24,9 @@
   export let onClickWeek: (date: Moment, isMetaPressed: boolean) => void;
   export let onContextMenuDay: (date: Moment, event: MouseEvent) => void;
   export let onContextMenuWeek: (date: Moment, event: MouseEvent) => void;
+  export let onClickGCMonth: ((date: Moment) => void) | null = null;
+  export let onClickGCQuarter: ((date: Moment) => void) | null = null;
+  export let onClickGCYear: ((date: Moment) => void) | null = null;
 
   let metadataUpdateTrigger = 0;
 
@@ -70,6 +73,9 @@
   {onContextMenuWeek}
   {onClickDay}
   {onClickWeek}
+  {onClickGCMonth}
+  {onClickGCQuarter}
+  {onClickGCYear}
   {metadataUpdateTrigger}
   bind:displayedMonth
   selectedId={$activeFile}

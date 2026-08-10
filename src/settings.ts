@@ -6,6 +6,7 @@ import {
   TAbstractFile,
   TFile,
   TFolder,
+  Vault,
 } from "obsidian";
 import type { ILocaleOverride, IWeekStartOption } from "obsidian-calendar-ui";
 import { get } from "svelte/store";
@@ -146,7 +147,7 @@ class FolderSuggest extends AbstractInputSuggest<TFolder> {
     const folders: TFolder[] = [];
     // Walk all files/dirs to get folders
     const root = this.app.vault.getRoot();
-    (this.app.vault as any).recurseChildren(root, (child: TAbstractFile) => {
+    Vault.recurseChildren(root, (child: TAbstractFile) => {
       if (child instanceof TFolder && child.path.toLowerCase().includes(lower)) {
         folders.push(child);
       }
@@ -207,23 +208,26 @@ export class CalendarSettingsTab extends PluginSettingTab {
 
   addPeriodicSection(key: string, label: string, defaultFormat: string): void {
     const opts = (this.plugin.options as any)[key];
+    const enabled = opts?.enabled ?? false;
+
+    // Container for the collapsible sub-settings
+    const sectionBody = this.containerEl.createDiv({ cls: "periodic-section-body" });
+    if (!enabled) sectionBody.style.display = "none";
 
     new Setting(this.containerEl)
       .setName(`${label} Notes`)
       .setDesc(`Enable ${label.toLowerCase()} note creation`)
       .addToggle((toggle) => {
-        toggle.setValue(opts?.enabled ?? false);
+        toggle.setValue(enabled);
         toggle.onChange(async (value) => {
           await this.plugin.writeOptions((s) => ({
             [key]: { ...(s as any)[key], enabled: value },
           } as any));
-          this.display();
+          sectionBody.style.display = value ? "" : "none";
         });
       });
 
-    if (!opts?.enabled) return;
-
-    new Setting(this.containerEl)
+    new Setting(sectionBody)
       .setName(`${label} format`)
       .addText((textfield) => {
         textfield.setPlaceholder(defaultFormat);
@@ -235,7 +239,7 @@ export class CalendarSettingsTab extends PluginSettingTab {
         });
       });
 
-    new Setting(this.containerEl)
+    new Setting(sectionBody)
       .setName(`${label} template`)
       .addText((textfield) => {
         textfield.setPlaceholder("Example: Templates/Note.md");
@@ -248,7 +252,7 @@ export class CalendarSettingsTab extends PluginSettingTab {
         });
       });
 
-    new Setting(this.containerEl)
+    new Setting(sectionBody)
       .setName(`${label} folder`)
       .addText((textfield) => {
         textfield.setPlaceholder("Example: NC/Monthly");
