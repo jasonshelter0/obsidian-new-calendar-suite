@@ -1,5 +1,6 @@
 import type { Moment, WeekSpec } from "moment";
 import { App, Plugin, WorkspaceLeaf, TFile, requestUrl } from "obsidian";
+import { configureGlobalMomentLocale } from "obsidian-calendar-ui";
 
 import { VIEW_TYPE_CALENDAR, VIEW_TYPE_NC_CALENDAR, SETTINGS_UPDATED } from "./constants";
 import { settings, holidays, holidayMeta, dailyNotes, weeklyNotes, monthlyNotes, quarterlyNotes, yearlyNotes, ncPhaseNotes, ncMonthNotes, ncSeasonNotes, ncYearNotes } from "./ui/stores";
@@ -134,12 +135,14 @@ export default class CalendarPlugin extends Plugin {
     this.register(
       settings.subscribe((value) => {
         this.options = value;
+        configureGlobalMomentLocale(value.localeOverride, value.weekStart);
         this.loadHolidays();
         this.onSettingsUpdate();
       })
     );
 
     await this.loadOptions();
+    configureGlobalMomentLocale(this.options.localeOverride, this.options.weekStart);
     await migrateIfNeeded(this);
 
     this.registerView(VIEW_TYPE_CALENDAR, (leaf: WorkspaceLeaf) => (this.view = new CalendarView(leaf)));
