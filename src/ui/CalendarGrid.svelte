@@ -77,6 +77,7 @@
   const gcMonthIndices = Array.from({ length: 12 }, (_, i) => (i + 1).toString());
 
   let hasScrolledToToday = false;
+  let headerHeight = 0;
 
   $: if (displayedMonth && today) {
     updateGrid(displayedMonth, mode, sources, today);
@@ -320,8 +321,8 @@
   );
 </script>
 
-<div class="calendar-container">
-  <div class="calendar-top-bar">
+<div class="calendar-container" style="--header-height: {headerHeight}px">
+  <div class="calendar-top-bar" bind:clientHeight={headerHeight}>
   <!-- Row 1: Title centered -->
   <div class="calendar-title-row">
     {#if mode === "GC" && gcInfo}
@@ -404,20 +405,10 @@
     {/if}
     <button class="nav-btn-today" on:click={goToday}>Today</button>
   </div>
-
-  <!-- Weekday header row (inside sticky top-bar) -->
-  <div class="calendar-weekdays">
-    {#if showWeekNums}
-      <span class="week-num-header"></span>
-    {/if}
-    {#each weekDays as day}
-      <span class="weekday-label">{day}</span>
-    {/each}
-  </div>
   </div><!-- .calendar-top-bar -->
 
   <table class="calendar-grid">
-    <thead style="display: none">
+    <thead>
       <tr>
         {#if showWeekNums}
           <th class="week-num-header"></th>
@@ -688,23 +679,6 @@
          font-weight: 600;
        }
 
-       .calendar-weekdays {
-         display: flex;
-         align-items: center;
-         padding-bottom: 8px;
-       }
-       .calendar-weekdays .weekday-label {
-         flex: 1;
-         text-align: center;
-         font-size: 0.7em;
-         color: var(--text-faint);
-         text-transform: uppercase;
-         font-weight: normal;
-       }
-       .calendar-weekdays .week-num-header {
-         width: 8%;
-         flex: none;
-       }
        .calendar-subheader {
          display: flex;
          align-items: center;
@@ -730,6 +704,10 @@
     font-weight: normal;
     padding-bottom: 8px;
     width: 13.1%;
+    position: sticky;
+    top: var(--header-height, 0);
+    background-color: var(--background-primary);
+    z-index: 9;
   }
   .week-num-header {
     width: 8% !important;

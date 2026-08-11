@@ -2,7 +2,7 @@
   "id": "new-calendar-suite",
   "name": "New Calendar Suite",
   "description": "GC + NC calendar views with periodic note management across 9 granularities. Built on Calendar and Periodic Notes, both by Liam Cain.",
-  "version": "1.4.4",
+  "version": "1.4.5",
   "author": "Jason Shelter",
   "authorUrl": "https://github.com/jasonshelter",
   "fundingUrl": "https://www.buymeacoffee.com/liamcain",
